@@ -24,6 +24,9 @@ pytest = [
   {version = ">=5.3.2", python = '^3.5'},
   {version = ">=3.5.2", python = '^2.7'}
 ]
+scandir = [
+  {version = ">=1.10.0", python = '^2.7'}
+]
 pytest-cov = "^2.8.1"
 pylint = [
   {version = "^2.4.4", python = "^3.5"}
