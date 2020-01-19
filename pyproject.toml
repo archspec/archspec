@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "archspec"
+version = "0.1.0"
+description = "A library to query system architecture"
+license = "MIT"
+authors = ["Massimiliano Culpo <massimiliano.culpo@gmail.com>"]
+readme = "README.md"
+classifiers = [
+"Development Status :: 3 - Alpha",
+"Intended Audience :: Developers",
+"Intended Audience :: Information Technology",
+"Intended Audience :: Science/Research",
+"Operating System :: MacOS",
+"Operating System :: POSIX :: Linux",
+"Operating System :: Unix"
+]
+
+[tool.poetry.dependencies]
+python = ">=2.7 !=3.4.* !=3.3.* !=3.2.* !=3.1.* !=3.0.*"
+six = "^1.13.0"
+
+[tool.poetry.dev-dependencies]
+pytest = [
+  {version = ">=5.3.2", python = '^3.5'},
+  {version = ">=3.5.2", python = '^2.7'}
+]
+pytest-cov = "^2.8.1"
+pylint = [
+  {version = "^2.4.4", python = "^3.5"}
+]
+flake8 = [
+  {version = "^3.7.9", python = "^3.5"}
+]
+black = [
+  {version = "^19.10b0", python = "^3.6"}
+]
+sphinx = [
+  {version = "^2.3.1", python = "^3.5"}
+]
+sphinx_rtd_theme = [
+  {version = "^0.4.3", python = "^3.5"}
+]
+jsonschema = "^3.2.0"
+
+[build-system]
+requires = ["poetry>=0.12"]
+build-backend = "poetry.masonry.api"

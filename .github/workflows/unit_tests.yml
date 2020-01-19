@@ -1,0 +1,45 @@
+name: Unit tests
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches: 
+      - master
+  schedule:
+  - cron: "0 4 * * *"
+    
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      max-parallel: 4
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+        python-version: [3.5, 3.6, 3.7, 3.8]
+
+    steps:
+    - uses: actions/checkout@v1
+      with:
+        submodules: true
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v1
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies (Common)
+      run: |
+        pip install poetry tox-gh-actions coverage
+    - name: Run tests with tox
+      run: |
+        tox
+        coverage xml
+    # - name: Upload to codecov.io
+    #   uses: codecov/codecov-action@v1.0.4
+    #   with:
+    #     token: ${{ secrets.CODECOV_TOKEN }}
+    #     file: ./coverage.xml
+    #     flags: unittests

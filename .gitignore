@@ -1,0 +1,9 @@
+/poetry.lock
+.tox
+.pytest_cache
+archspec.egg-info
+dist
+.idea
+.coverage
+__pycache__
+*.pyc
