@@ -1,5 +1,5 @@
-[![](https://github.com/archspec/archspec-python/workflows/Unit%20tests/badge.svg)](https://github.com/archspec/archspec-python/actions)
-[![codecov](https://codecov.io/gh/archspec/archspec-python/branch/master/graph/badge.svg)](https://codecov.io/gh/archspec/archspec-python)
+[![](https://github.com/archspec/archspec/workflows/Unit%20tests/badge.svg)](https://github.com/archspec/archspec/actions)
+[![codecov](https://codecov.io/gh/archspec/archspec/branch/master/graph/badge.svg)](https://codecov.io/gh/archspec/archspec)
 
 
 # Archspec (Python bindings)
@@ -28,7 +28,7 @@ $ pip install --user tox
 ```
 Finally you'll need to clone the repository: 
 ```console
-$ git clone --recursive https://github.com/archspec/archspec-python.git
+$ git clone --recursive https://github.com/archspec/archspec.git
 ```
 
 ### Running unit tests
