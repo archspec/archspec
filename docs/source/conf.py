@@ -17,9 +17,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = 'archspec'
-copyright = "2020, archspec's authors"
-author = "archspec's authors"
+project = 'Archspec'
+copyright = "2020, Archspec's Contributors"
+author = "Archspec's Contributors"
 
 # The full version, including alpha/beta/rc tags
 release = '0.1.0'
