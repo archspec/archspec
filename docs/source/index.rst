@@ -10,7 +10,7 @@ Welcome to archspec's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-
+   getting_started
 
 Indices and tables
 ==================
