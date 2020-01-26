@@ -3,7 +3,7 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Welcome to archspec's documentation!
+Welcome to Archspec's documentation!
 ====================================
 
 .. toctree::
@@ -11,6 +11,13 @@ Welcome to archspec's documentation!
    :caption: Contents:
 
    getting_started
+   microarchitectures
+
+.. toctree::
+   :maxdepth: 2
+   :caption: API Docs:
+
+   apidocs
 
 Indices and tables
 ==================
