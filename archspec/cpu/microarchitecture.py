@@ -46,42 +46,43 @@ def coerce_target_names(func):
 
 
 class Microarchitecture(object):
-    # pylint: disable=missing-class-docstring,too-many-arguments
+    """Represents a specific CPU micro-architecture.
+
+    Args:
+        name (str): name of the micro-architecture (e.g. skylake).
+        parents (list): list of parents micro-architectures, if any.
+            Parenthood is considered by cpu features and not
+            chronologically. As such each micro-architecture is
+            compatible with its ancestors. For example "skylake",
+            which has "broadwell" as a parent, supports running binaries
+            optimized for "broadwell".
+        vendor (str): vendor of the micro-architecture
+        features (list of str): supported CPU flags. Note that the semantic
+            of the flags in this field might vary among architectures, if
+            at all present. For instance x86_64 processors will list all
+            the flags supported by a given CPU while Arm processors will
+            list instead only the flags that have been added on top of the
+            base model for the current micro-architecture.
+        compilers (dict): compiler support to generate tuned code for this
+            micro-architecture. This dictionary has as keys names of
+            supported compilers, while values are list of dictionaries
+            with fields:
+
+            * name: name of the micro-architecture according to the
+                compiler. This is the name passed to the ``-march`` option
+                or similar. Not needed if the name is the same as that
+                passed in as argument above.
+            * versions: versions that support this micro-architecture.
+
+        generation (int): generation of the micro-architecture, if
+            relevant.
+    """
+
+    # pylint: disable=too-many-arguments
     #: Aliases for micro-architecture's features
     feature_aliases = FEATURE_ALIASES
 
     def __init__(self, name, parents, vendor, features, compilers, generation=0):
-        """Represents a specific CPU micro-architecture.
-
-        Args:
-            name (str): name of the micro-architecture (e.g. skylake).
-            parents (list): list of parents micro-architectures, if any.
-                Parenthood is considered by cpu features and not
-                chronologically. As such each micro-architecture is
-                compatible with its ancestors. For example "skylake",
-                which has "broadwell" as a parent, supports running binaries
-                optimized for "broadwell".
-            vendor (str): vendor of the micro-architecture
-            features (list of str): supported CPU flags. Note that the semantic
-                of the flags in this field might vary among architectures, if
-                at all present. For instance x86_64 processors will list all
-                the flags supported by a given CPU while Arm processors will
-                list instead only the flags that have been added on top of the
-                base model for the current micro-architecture.
-            compilers (dict): compiler support to generate tuned code for this
-                micro-architecture. This dictionary has as keys names of
-                supported compilers, while values are list of dictionaries
-                with fields:
-
-                * name: name of the micro-architecture according to the
-                    compiler. This is the name passed to the ``-march`` option
-                    or similar. Not needed if the name is the same as that
-                    passed in as argument above.
-                * versions: versions that support this micro-architecture.
-
-            generation (int): generation of the micro-architecture, if
-                relevant.
-        """
         self.name = name
         self.parents = parents
         self.vendor = vendor
