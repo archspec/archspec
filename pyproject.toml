@@ -5,8 +5,9 @@ description = "A library to query system architecture"
 license = "MIT"
 authors = ["archspec developers <maintainers@spack.io>"]
 maintainers = [
+"Greg Becker <maintainers@spack.io>",
 "Massimiliano Culpo <massimiliano.culpo@gmail.com>",
-"Greg Becker <maintainers@spack.io>"
+"Todd Gamblin <maintainers@spack.io>"
 ]
 repository = "https://github.com/archspec/archspec.git"
 homepage = "https://github.com/archspec/archspec"
