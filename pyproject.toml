@@ -7,7 +7,7 @@ authors = ["archspec developers <maintainers@spack.io>"]
 maintainers = [
 "Greg Becker <maintainers@spack.io>",
 "Massimiliano Culpo <massimiliano.culpo@gmail.com>",
-"Todd Gamblin <maintainers@spack.io>"
+"Todd Gamblin <maintainers@spack.io>",
 "Kenneth Hoste <kenneth.hoste@ugent.be>"
 ]
 repository = "https://github.com/archspec/archspec.git"
