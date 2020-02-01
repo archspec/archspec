@@ -2,7 +2,7 @@
 name = "archspec"
 version = "0.1.0"
 description = "A library to query system architecture"
-license = "MIT"
+license = "Apache-2.0 OR MIT"
 authors = ["archspec developers <maintainers@spack.io>"]
 maintainers = [
 "Greg Becker <maintainers@spack.io>",
