@@ -1,3 +1,4 @@
 [submodule "archspec/json"]
 	path = archspec/json
 	url = https://github.com/archspec/archspec-json.git
+	branch = releases/v0.1
