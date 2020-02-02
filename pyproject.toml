@@ -2,8 +2,16 @@
 name = "archspec"
 version = "0.1.0"
 description = "A library to query system architecture"
-license = "MIT"
-authors = ["Massimiliano Culpo <massimiliano.culpo@gmail.com>"]
+license = "Apache-2.0 OR MIT"
+authors = ["archspec developers <maintainers@spack.io>"]
+maintainers = [
+"Greg Becker <maintainers@spack.io>",
+"Massimiliano Culpo <massimiliano.culpo@gmail.com>",
+"Todd Gamblin <maintainers@spack.io>",
+"Kenneth Hoste <kenneth.hoste@ugent.be>"
+]
+repository = "https://github.com/archspec/archspec.git"
+homepage = "https://github.com/archspec/archspec"
 readme = "README.md"
 classifiers = [
 "Development Status :: 3 - Alpha",
