@@ -1,5 +1,6 @@
 [![](https://github.com/archspec/archspec/workflows/Unit%20tests/badge.svg)](https://github.com/archspec/archspec/actions)
 [![codecov](https://codecov.io/gh/archspec/archspec/branch/master/graph/badge.svg)](https://codecov.io/gh/archspec/archspec)
+[![Documentation Status](https://readthedocs.org/projects/archspec/badge/?version=latest)](https://archspec.readthedocs.io/en/latest/?badge=latest)
 
 
 # Archspec (Python bindings)
