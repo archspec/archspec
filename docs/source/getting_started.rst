@@ -58,10 +58,10 @@ started using it.
 .. TODO: Recommend using ``pip``?
 
 ---------------------------------
-Installing from Github Repository
+Installing from GitHub Repository
 ---------------------------------
 
-Installing Archspec from a clone of its Github Repository
+Installing Archspec from a clone of its GitHub Repository
 requires `poetry <https://python-poetry.org/>`_. The
 preferred method to install this tool is via
 its custom installer outside of any virtual environment:
