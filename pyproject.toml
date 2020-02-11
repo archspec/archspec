@@ -12,6 +12,7 @@ maintainers = [
 ]
 repository = "https://github.com/archspec/archspec.git"
 homepage = "https://github.com/archspec/archspec"
+documentation = "https://archspec.readthedocs.io"
 readme = "README.md"
 classifiers = [
 "Development Status :: 3 - Alpha",
