@@ -31,6 +31,7 @@ jobs:
       with:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies (Common)
+      # For the virtualenv installation see https://github.com/tox-dev/tox/issues/1516
       run: |
         pip install poetry tox-gh-actions coverage virtualenv==16.7.9
     - name: Run tests with tox
