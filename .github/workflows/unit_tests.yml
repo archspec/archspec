@@ -32,7 +32,7 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies (Common)
       run: |
-        pip install poetry tox-gh-actions coverage
+        pip install poetry tox-gh-actions coverage virtualenv==16.7.9
     - name: Run tests with tox
       run: |
         tox
