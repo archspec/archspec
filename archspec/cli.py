@@ -14,14 +14,9 @@ def main():
     """archspec command line interface"""
 
 
-@main.group()
+@main.command()
 def cpu():
     """archspec command line interface for CPU"""
-
-
-@cpu.command()
-def host():
-    """print name of CPU microarchitecture of host"""
     click.echo(archspec.cpu.host())
 
 
