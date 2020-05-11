@@ -7,9 +7,11 @@ import sys
 
 
 def main():
-    parser = argparse.ArgumentParser(description="archspec command line interface", prog='archspec')
+    parser = argparse.ArgumentParser(description="archspec command line interface", 
+                                     prog='archspec')
 
-    parser.add_argument('--cpu-host', help="Print name of host CPU microarchitecture", action='store_true')
+    parser.add_argument('--cpu-host', help="Print name of host CPU microarchitecture",
+                        action='store_true')
     parser.add_argument('--version', action='version', version=archspec.__version__)
 
     args = parser.parse_args()
