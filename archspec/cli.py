@@ -1,20 +1,22 @@
 #!/usr/bin/env python
+"""
+archspec command line interface
+"""
+
+import click
 
 import archspec
 import archspec.cpu
-import click
 
 
-@click.group(name="archspec")
+@click.group(name='archspec')
 def main():
     """archspec command line interface"""
-    pass
 
 
 @main.group()
 def cpu():
     """archspec command line interface for CPU"""
-    pass
 
 
 @cpu.command()
@@ -23,5 +25,5 @@ def host():
     click.echo(archspec.cpu.host())
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
