@@ -2,31 +2,25 @@
 
 import archspec
 import archspec.cpu
-import argparse
-import sys
+import click
 
 
+@click.group(name='archspec')
 def main():
-    parser = argparse.ArgumentParser(description="archspec command line interface",
-                                     prog='archspec')
-    parser.add_argument('-V', '--version', action='version', version=archspec.__version__)
+    """archspec command line interface"""
+    pass
 
-    subparsers = parser.add_subparsers()
 
-    cpu_parser = subparsers.add_parser('cpu')
+@main.group()
+def cpu():
+    """archspec command line interface for CPU"""
+    pass
 
-    cpu_host_parser = cpu_parser.add_subparsers().add_parser('host')
-    cpu_host_parser.add_argument('cpu.host', help="print name of host CPU microarchitecture",
-                                 action='store_true')
 
-    args = parser.parse_args()
-
-    if getattr(args, 'cpu.host'):
-        print(archspec.cpu.host())
-        sys.exit(0)
-    else:
-        parser.print_usage()
-        sys.exit(1)
+@cpu.command()
+def host():
+    """print name of CPU microarchitecture of host"""
+    click.echo(archspec.cpu.host())
 
 
 if __name__ == '__main__':
