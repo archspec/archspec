@@ -9,7 +9,7 @@ import archspec
 import archspec.cpu
 
 
-@click.group(name='archspec')
+@click.group(name="archspec")
 def main():
     """archspec command line interface"""
 
@@ -25,5 +25,5 @@ def host():
     click.echo(archspec.cpu.host())
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
