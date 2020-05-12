@@ -1,4 +1,8 @@
-#!/usr/bin/env python
+# Copyright 2013-2020 Lawrence Livermore National Security, LLC and other
+# Spack and Archspec Project Developers. See the top-level COPYRIGHT file
+# for details.
+#
+# SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """
 archspec command line interface
 """
@@ -18,7 +22,3 @@ def main():
 def cpu():
     """archspec command line interface for CPU"""
     click.echo(archspec.cpu.host())
-
-
-if __name__ == "__main__":
-    main()
