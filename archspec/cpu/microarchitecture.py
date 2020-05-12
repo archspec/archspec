@@ -12,19 +12,13 @@ import platform
 import re
 import warnings
 
-try:
-    from collections.abc import Sequence  # novm
-except ImportError:
-    from collections import Sequence
-
 import six
 
 import archspec
 import archspec.cpu.alias
 import archspec.cpu.schema
-
-from .schema import LazyDictionary
 from .alias import FEATURE_ALIASES
+from .schema import LazyDictionary
 
 
 def coerce_target_names(func):
@@ -220,10 +214,6 @@ class Microarchitecture(object):
         # version being used
         compiler_info = self.compilers[compiler]
 
-        # Normalize the entries to have a uniform treatment in the code below
-        if not isinstance(compiler_info, Sequence):
-            compiler_info = [compiler_info]
-
         def satisfies_constraint(entry, version):
             min_version, max_version = entry["versions"].split(":")
 
@@ -335,10 +325,6 @@ def _known_microarchitectures():
 
         # Get direct parents of target
         parent_names = values["from"]
-        if isinstance(parent_names, six.string_types):
-            parent_names = [parent_names]
-        if parent_names is None:
-            parent_names = []
         for parent in parent_names:
             # Recursively fill parents so they exist before we add them
             if parent in targets:
