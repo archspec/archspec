@@ -206,9 +206,20 @@ class Microarchitecture(object):
             compiler (str): name of the compiler to be used
             version (str): version of the compiler to be used
         """
-        # If we don't have information on compiler return an empty string
-        if compiler not in self.compilers:
+        # If we don't have information on compiler at all return an empty string
+        if compiler not in self.family.compilers:
             return ""
+
+        # If we have information but it stops before this
+        # microarchitecture, fall back to the best known target
+        if compiler not in self.compilers:
+            best_target = [x for x in self.ancestors if compiler in x.compilers][0]
+            msg = (
+                "'{0}' compiler is known to optimize up to the '{1}'"
+                " microarchitecture in the '{2}' architecture family"
+            )
+            msg = msg.format(compiler, best_target, best_target.family)
+            raise UnsupportedMicroarchitecture(msg)
 
         # If we have information on this compiler we need to check the
         # version being used
@@ -218,15 +229,9 @@ class Microarchitecture(object):
             min_version, max_version = entry["versions"].split(":")
 
             # Check version suffixes
-            min_version, min_suffix = version_components(min_version)
-            max_version, max_suffix = version_components(max_version)
-            version, suffix = version_components(version)
-
-            # If the suffixes are not all equal there's no match
-            if (suffix != min_suffix and min_version) or (
-                suffix != max_suffix and max_version  # pylint: disable=bad-continuation
-            ):
-                return False
+            min_version, _ = version_components(min_version)
+            max_version, _ = version_components(max_version)
+            version, _ = version_components(version)
 
             # Assume compiler versions fit into semver
             tuplify = lambda x: tuple(int(y) for y in x.split("."))  # noqa: E731,E501
@@ -287,7 +292,7 @@ def version_components(version):
     """Decomposes the version passed as input in version number and
     suffix and returns them.
 
-    If the version number of the suffix are not present, an empty
+    If the version number or the suffix are not present, an empty
     string is returned.
 
     Args:
