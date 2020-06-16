@@ -35,6 +35,8 @@ Archspec needs the following software:
       - 2.7 or 3.5+
     * - `six <https://pypi.org/project/six/>`_
       - ^1.13.0
+    * - `click <https://click.palletsprojects.com/en/7.x/>`_
+      - >=7.1.2,<8.0
 
 It is a multiplatform project and currently works on linux and MacOS.
 Porting to Windows is expected in the future.
@@ -50,7 +52,7 @@ any release you can simply use ``pip``:
 
     $ pip install archspec[==<required-release>]
     $ python -c "import archspec; print(archspec.__version__)"
-    0.1.0
+    0.1.1
 
 This is the simplest way to install the package and getting
 started using it.
@@ -84,20 +86,21 @@ and installing Archspec:
     $ cd archspec
 
     $ poetry install --no-dev
-    Creating virtualenv archspec-xBJBEc-n-py2.7 in /home/culpo/.cache/pypoetry/virtualenvs
+    Creating virtualenv archspec-0fr1r4aA-py2.7 in /home/culpo/.cache/pypoetry/virtualenvs
     Updating dependencies
-    Resolving dependencies... (3.0s)
+    Resolving dependencies... (17.7s)
 
     Writing lock file
 
 
-    Package operations: 1 install, 0 updates, 0 removals
+    Package operations: 2 installs, 0 updates, 0 removals
 
-      - Installing six (1.14.0)
-      - Installing archspec (0.1.0)
+      - Installing click (7.1.2)
+      - Installing six (1.15.0)
+      - Installing archspec (0.1.1)
 
     $ poetry run python -c "import archspec; print(archspec.__version__)"
-    0.1.0
+    0.1.1
 
 Poetry manages virtual environments for the user. Using ``poetry run`` is
 just one of the possibility offered by this tool, for further options
@@ -126,7 +129,7 @@ above:
       - Installing pytest (4.6.9)
       - Installing jsonschema (3.2.0)
       - Installing pytest-cov (2.8.1)
-      - Installing archspec (0.1.0)
+      - Installing archspec (0.1.1)
 
 At this point you can run unit-tests, linters or other checks. When
 developing we recommend to use Python ^3.6 so that the latest versions
