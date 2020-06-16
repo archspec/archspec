@@ -220,6 +220,8 @@ def test_target_json_schema():
         ("sandybridge", "gcc", "4.8.5", "-march=corei7-avx -mtune=corei7-avx"),
         ("thunderx2", "gcc", "4.8.5", "-march=armv8-a"),
         ("thunderx2", "gcc", "4.9.3", "-march=armv8-a+crc+crypto"),
+        # Test Apple's Clang
+        ("x86_64", "apple-clang", "11.0.0", "-march=x86-64"),
         # Test Clang / LLVM
         ("sandybridge", "clang", "3.9.0", "-march=sandybridge -mtune=sandybridge"),
         ("icelake", "clang", "6.0.0", "-march=icelake -mtune=icelake"),
@@ -256,14 +258,12 @@ def test_optimization_flags(target_name, compiler, version, expected_flags):
 
 
 @pytest.mark.parametrize(
-    "target_name,compiler,version", [("excavator", "gcc", "4.8.5")]
+    "target_name,compiler,version",
+    [("excavator", "gcc", "4.8.5"), ("broadwell", "apple-clang", "11.0.0")],
 )
 def test_unsupported_optimization_flags(target_name, compiler, version):
     target = archspec.cpu.TARGETS[target_name]
-    with pytest.raises(
-        archspec.cpu.UnsupportedMicroarchitecture,
-        match="cannot produce optimized binary",
-    ):
+    with pytest.raises(archspec.cpu.UnsupportedMicroarchitecture):
         target.optimization_flags(compiler, version)
 
 
