@@ -234,7 +234,8 @@ class Microarchitecture(object):
             version, _ = version_components(version)
 
             # Assume compiler versions fit into semver
-            tuplify = lambda x: tuple(int(y) for y in x.split("."))  # noqa: E731,E501
+            def tuplify(ver):
+                return tuple(int(y) for y in ver.split("."))
 
             version = tuplify(version)
             if min_version:
