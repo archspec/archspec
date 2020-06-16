@@ -258,14 +258,12 @@ def test_optimization_flags(target_name, compiler, version, expected_flags):
 
 
 @pytest.mark.parametrize(
-    "target_name,compiler,version", [("excavator", "gcc", "4.8.5")]
+    "target_name,compiler,version",
+    [("excavator", "gcc", "4.8.5"), ("broadwell", "apple-clang", "11.0.0")],
 )
 def test_unsupported_optimization_flags(target_name, compiler, version):
     target = archspec.cpu.TARGETS[target_name]
-    with pytest.raises(
-        archspec.cpu.UnsupportedMicroarchitecture,
-        match="cannot produce optimized binary",
-    ):
+    with pytest.raises(archspec.cpu.UnsupportedMicroarchitecture):
         target.optimization_flags(compiler, version)
 
 
