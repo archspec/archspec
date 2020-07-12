@@ -13,11 +13,13 @@ import archspec.cpu
 
 
 @click.group(name="archspec")
+@click.version_option()
 def main():
     """archspec command line interface"""
 
 
 @main.command()
+@click.version_option()
 def cpu():
     """archspec command line interface for CPU"""
     click.echo(archspec.cpu.host())

@@ -5,6 +5,7 @@
 import pytest
 import click.testing
 import archspec.cli
+from archspec import __version__
 
 
 @pytest.mark.parametrize("cli_args", [("--help",), ("cpu", "--help"), ("cpu",)])
@@ -12,3 +13,11 @@ def test_command_run_without_failure(cli_args):
     runner = click.testing.CliRunner()
     result = runner.invoke(archspec.cli.main, cli_args)
     assert result.exit_code == 0
+
+
+@pytest.mark.parametrize("cli_args", [("--version"), ("cpu", "--version")])
+def test_cli_version(cli_args):
+    runner = click.testing.CliRunner()
+    result = runner.invoke(archspec.cli.main, cli_args)
+    assert result.exit_code == 0
+    assert result.stdout == "archspec, version " + __version__ + "\n"

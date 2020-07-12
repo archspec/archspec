@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "archspec"
-version = "0.1.1"
+version = "0.1.2"
 description = "A library to query system architecture"
 license = "Apache-2.0 OR MIT"
 authors = ["archspec developers <maintainers@spack.io>"]
