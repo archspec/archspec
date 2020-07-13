@@ -15,9 +15,8 @@ def test_command_run_without_failure(cli_args):
     assert result.exit_code == 0
 
 
-@pytest.mark.parametrize("cli_args", [("--version"), ("cpu", "--version")])
-def test_cli_version(cli_args):
+def test_cli_version():
     runner = click.testing.CliRunner()
-    result = runner.invoke(archspec.cli.main, cli_args)
+    result = runner.invoke(archspec.cli.main, ("--version"))
     assert result.exit_code == 0
     assert result.stdout == "archspec, version " + __version__ + "\n"

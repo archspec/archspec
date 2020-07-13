@@ -19,7 +19,6 @@ def main():
 
 
 @main.command()
-@click.version_option()
 def cpu():
     """archspec command line interface for CPU"""
     click.echo(archspec.cpu.host())
