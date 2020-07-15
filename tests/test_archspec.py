@@ -2,10 +2,10 @@
 # Archspec Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
-from archspec import __version__
+import archspec
 
 
 def test_version():
-    assert __version__ == "0.1.1"
+    assert archspec.__version__ == "0.1.1"
     with open("pyproject.toml") as fp:
-        assert 'version = "' + __version__ + '"\n' in fp.read()
+        assert 'version = "' + archspec.__version__ + '"\n' in fp.read()
