@@ -13,7 +13,7 @@ import archspec.cpu
 
 
 @click.group(name="archspec")
-@click.version_option()
+@click.version_option(version=archspec.__version__)
 def main():
     """archspec command line interface"""
 
