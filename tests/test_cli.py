@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 import pytest
 import click.testing
+import archspec
 import archspec.cli
 
 
@@ -12,3 +13,10 @@ def test_command_run_without_failure(cli_args):
     runner = click.testing.CliRunner()
     result = runner.invoke(archspec.cli.main, cli_args)
     assert result.exit_code == 0
+
+
+def test_cli_version():
+    runner = click.testing.CliRunner()
+    result = runner.invoke(archspec.cli.main, ("--version"))
+    assert result.exit_code == 0
+    assert result.stdout == "archspec, version " + archspec.__version__ + "\n"
