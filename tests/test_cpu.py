@@ -51,14 +51,14 @@ def expected_target(request, monkeypatch):
     )
 
     test_dir = os.path.dirname(__file__)
-
+    target_dir = os.path.join(test_dir, "..", "archspec", "json", "tests", "targets")
     # Monkeypatch for linux
     if platform in ("linux", "bgq"):
         monkeypatch.setattr(cpu.detect.platform, "system", lambda: "Linux")
 
         @contextlib.contextmanager
         def _open(not_used_arg):
-            filename = os.path.join(test_dir, "data", "targets", request.param)
+            filename = os.path.join(target_dir, request.param)
             with open(filename) as f:
                 yield f
 
@@ -67,7 +67,7 @@ def expected_target(request, monkeypatch):
     elif platform == "darwin":
         monkeypatch.setattr(cpu.detect.platform, "system", lambda: "Darwin")
 
-        filename = os.path.join(test_dir, "data", "targets", request.param)
+        filename = os.path.join(target_dir, request.param)
         info = {}
         with open(filename) as f:
             for line in f:
