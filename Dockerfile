@@ -10,7 +10,7 @@ RUN pip3 install poetry tox-gh-actions coverage
 RUN pip3 install archspec
 RUN dnf clean all
 
-RUN useradd archer
-USER archer
+RUN useradd archspec
+USER archspec
 
 ENTRYPOINT ["archspec"]
