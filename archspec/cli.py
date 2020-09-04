@@ -7,6 +7,7 @@ archspec command line interface
 """
 
 import click
+from graphviz import Digraph
 
 import archspec
 import archspec.cpu
@@ -22,3 +23,25 @@ def main():
 def cpu():
     """archspec command line interface for CPU"""
     click.echo(archspec.cpu.host())
+
+
+@main.command()
+def dag():
+    """Print Direct Acyclic Graph (DAG) for known CPU microarchitectures."""
+
+    def node_label(uarch):
+        """Create node label for specified Microarchitecture instance."""
+        res = uarch.name
+        if uarch.parents and uarch.vendor != uarch.parents[0].vendor:
+            res += " (" + uarch.vendor + ")"
+        return res
+
+    dag = Digraph()
+
+    for key in archspec.cpu.TARGETS:
+        uarch = archspec.cpu.TARGETS[key]
+        dag.node(uarch.name, node_label(uarch))
+        for parent in uarch.parents:
+            dag.edge(parent.name, uarch.name)
+
+    click.echo(dag.source)
