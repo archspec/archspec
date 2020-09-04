@@ -19,7 +19,7 @@ def main():
     """archspec command line interface"""
 
 
-def print_cpu_dag(ctx, *args):
+def cb_cpu_dag(ctx, param, value):
     """Print Direct Acyclic Graph (DAG) for known CPU microarchitectures."""
 
     def node_label(uarch):
@@ -41,14 +41,14 @@ def print_cpu_dag(ctx, *args):
     ctx.exit()
 
 
-def print_cpu_name(ctx, *args):
+def cb_cpu_name(ctx, param, value):
     """Print name of microarchitecture of host CPU."""
     click.echo(archspec.cpu.host())
     ctx.exit()
 
 
 @main.command()
-@click.option('--name', is_flag=True, default=True, callback=print_cpu_name)
-@click.option('--dag', is_flag=True, default=False, callback=print_cpu_dag)
+@click.option('--name', is_flag=True, default=True, callback=cb_cpu_name)
+@click.option('--dag', is_flag=True, default=False, callback=cb_cpu_dag)
 def cpu():
     """archspec command line interface for CPU"""
