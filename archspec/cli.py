@@ -36,12 +36,12 @@ def dag():
             res += " (" + uarch.vendor + ")"
         return res
 
-    dag = Digraph()
+    cpu_uarch_dag = Digraph()
 
     for key in archspec.cpu.TARGETS:
         uarch = archspec.cpu.TARGETS[key]
-        dag.node(uarch.name, node_label(uarch))
+        cpu_uarch_dag.node(uarch.name, node_label(uarch))
         for parent in uarch.parents:
-            dag.edge(parent.name, uarch.name)
+            cpu_uarch_dag.edge(parent.name, uarch.name)
 
-    click.echo(dag.source)
+    click.echo(cpu_uarch_dag.source)
