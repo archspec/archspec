@@ -48,7 +48,7 @@ def cb_cpu_name(ctx, param, value):
 
 
 @main.command()
-@click.option('--name', is_flag=True, default=True, callback=cb_cpu_name)
-@click.option('--dag', is_flag=True, default=False, callback=cb_cpu_dag)
+@click.option("--name", is_flag=True, default=True, callback=cb_cpu_name)
+@click.option("--dag", is_flag=True, default=False, callback=cb_cpu_dag)
 def cpu():
     """archspec command line interface for CPU"""
