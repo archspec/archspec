@@ -32,6 +32,17 @@ jobs:
       run: |
         tox
         coverage xml
+    - name: Run archspec commands
+      run: |
+        poetry install
+        poetry run archspec cpu
+        poetry run archspec cpu --dag
+    - name: Render output of archspec cpu --dag
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      run: |
+        sudo apt-get install graphviz
+        poetry run archspec cpu --dag | dot -T pdf -o archspec_cpu_dag.pdf;
+        ls -l archspec_cpu_dag.pdf;
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v1
       with:
