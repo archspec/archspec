@@ -1,3 +1,5 @@
+# Universal Base Image (UBI) for Python 3.8
+# https://developers.redhat.com/products/rhel/ubi
 FROM registry.access.redhat.com/ubi8/python-38
 
 USER root
