@@ -1,11 +1,11 @@
-name: Unit tests
+name: CLI tests
 
 on:
   push:
   pull_request:
   schedule:
   - cron: "0 4 * * *"
-    
+
 jobs:
   build:
 
@@ -27,13 +27,15 @@ jobs:
         python-version: ${{ matrix.python-version }}
     - name: Install dependencies (Common)
       run: |
-        pip install poetry tox-gh-actions coverage
-    - name: Run tests with tox
+        pip install poetry
+    - name: Run archspec commands
       run: |
-        tox
-        coverage xml
-    - name: Upload to codecov.io
-      uses: codecov/codecov-action@v1
-      with:
-        file: ./coverage.xml
-        flags: unittests
+        poetry install
+        poetry run archspec cpu
+        poetry run archspec graph
+    - name: Render output of archspec graph --dag
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      run: |
+        sudo apt-get install graphviz
+        poetry run archspec graph --cpu | dot -T pdf -o archspec_cpu_dag.pdf;
+        ls -l archspec_cpu_dag.pdf;
