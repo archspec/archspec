@@ -18,7 +18,7 @@ def test_command_run_without_failure(cli_args):
     assert result.exit_code == 0
 
 
-@pytest.mark.parametrize("cli_args", [("cpu"), ("cpu --name")])
+@pytest.mark.parametrize("cli_args", [("cpu")])
 def test_cli_cpu_name(cli_args):
     runner = click.testing.CliRunner()
     result = runner.invoke(archspec.cli.main, cli_args)
@@ -26,9 +26,10 @@ def test_cli_cpu_name(cli_args):
     assert result.stdout.strip() in archspec.cpu.TARGETS
 
 
-def test_cli_cpu_dag():
+@pytest.mark.parametrize("cli_args", [("graph"), ("graph", "--cpu")])
+def test_cli_graph_dag(cli_args):
     runner = click.testing.CliRunner()
-    result = runner.invoke(archspec.cli.main, ("cpu", "--dag"))
+    result = runner.invoke(archspec.cli.main, cli_args)
     assert result.exit_code == 0
 
     assert result.stdout.startswith("digraph {")

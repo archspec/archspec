@@ -7,7 +7,7 @@ archspec command line interface
 """
 
 import click
-from graphviz import Digraph
+import graphviz
 
 import archspec
 import archspec.cpu
@@ -19,8 +19,16 @@ def main():
     """archspec command line interface"""
 
 
-def cb_cpu_dag(ctx, param, value):
-    """Print Direct Acyclic Graph (DAG) for known CPU microarchitectures."""
+@main.command()
+def cpu():
+    """archspec command line interface for CPU"""
+    click.echo(archspec.cpu.host())
+
+
+@main.command()
+@click.option("--cpu", is_flag=True, default=False, help="Only print DAG for CPU microarchitectures")
+def graph(cpu):
+    """Print Direct Acyclic Graph (DAG) for all known system aspects."""
 
     def node_label(uarch):
         """Create node label for specified Microarchitecture instance."""
@@ -29,26 +37,17 @@ def cb_cpu_dag(ctx, param, value):
             res += " (" + uarch.vendor + ")"
         return res
 
-    cpu_uarch_dag = Digraph()
+    # for now only CPU microarchitectures are supported so this looks a bit silly,
+    # but eventually the idea is to only print all aspects if no specific aspect was selected
+    if not cpu:
+        all_aspects = True
 
-    for key in archspec.cpu.TARGETS:
-        uarch = archspec.cpu.TARGETS[key]
-        cpu_uarch_dag.node(uarch.name, node_label(uarch))
-        for parent in uarch.parents:
-            cpu_uarch_dag.edge(parent.name, uarch.name)
+    if cpu or all_aspects:
+        cpu_uarch_dag = graphviz.Digraph()
 
-    click.echo(cpu_uarch_dag.source)
-    ctx.exit()
+        for uarch in archspec.cpu.TARGETS.values():
+            cpu_uarch_dag.node(uarch.name, node_label(uarch))
+            for parent in uarch.parents:
+                cpu_uarch_dag.edge(parent.name, uarch.name)
 
-
-def cb_cpu_name(ctx, param, value):
-    """Print name of microarchitecture of host CPU."""
-    click.echo(archspec.cpu.host())
-    ctx.exit()
-
-
-@main.command()
-@click.option("--name", is_flag=True, default=True, callback=cb_cpu_name)
-@click.option("--dag", is_flag=True, default=False, callback=cb_cpu_dag)
-def cpu():
-    """archspec command line interface for CPU"""
+        click.echo(cpu_uarch_dag.source)
