@@ -26,8 +26,13 @@ def cpu():
 
 
 @main.command()
-@click.option("--cpu", 'only_cpu', is_flag=True, default=False,
-              help="Only print DAG for CPU microarchitectures")
+@click.option(
+    "--cpu",
+    "only_cpu",
+    is_flag=True,
+    default=False,
+    help="Only print DAG for CPU microarchitectures",
+)
 def graph(only_cpu):
     """Print Direct Acyclic Graph (DAG) for all known system aspects."""
 
