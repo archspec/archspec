@@ -26,8 +26,9 @@ def cpu():
 
 
 @main.command()
-@click.option("--cpu", is_flag=True, default=False, help="Only print DAG for CPU microarchitectures")
-def graph(cpu):
+@click.option("--cpu", 'only_cpu', is_flag=True, default=False,
+              help="Only print DAG for CPU microarchitectures")
+def graph(only_cpu):
     """Print Direct Acyclic Graph (DAG) for all known system aspects."""
 
     def node_label(uarch):
@@ -39,10 +40,10 @@ def graph(cpu):
 
     # for now only CPU microarchitectures are supported so this looks a bit silly,
     # but eventually the idea is to only print all aspects if no specific aspect was selected
-    if not cpu:
+    if not only_cpu:
         all_aspects = True
 
-    if cpu or all_aspects:
+    if only_cpu or all_aspects:
         cpu_uarch_dag = graphviz.Digraph()
 
         for uarch in archspec.cpu.TARGETS.values():
