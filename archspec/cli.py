@@ -44,7 +44,7 @@ def graph(only_cpu):
         return res
 
     # for now only CPU microarchitectures are supported so this looks a bit silly,
-    # but eventually the idea is to only print all aspects if no specific aspect was selected
+    # but eventually we want to print all aspects if no specific aspect was selected
     if not only_cpu:
         all_aspects = True
 
