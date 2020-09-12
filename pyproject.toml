@@ -54,6 +54,9 @@ sphinx_rtd_theme = [
   {version = "^0.4.3", python = "^3.5"}
 ]
 jsonschema = "^3.2.0"
+pyrsistent = [
+  {version="<0.17.0", python="^2.7"}
+]
 
 [tool.poetry.scripts]
 archspec = 'archspec.cli:main'
