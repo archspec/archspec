@@ -39,6 +39,8 @@ from archspec.cpu import Microarchitecture
         "darwin-mojave-haswell",
         "darwin-mojave-skylake",
         "bgq-rhel6-power7",
+        "linux-amazon-graviton",
+        "linux-amazon-graviton2",
     ]
 )
 def expected_target(request, monkeypatch):
