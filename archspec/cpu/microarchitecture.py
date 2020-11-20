@@ -361,6 +361,27 @@ def _known_microarchitectures():
     return known_targets
 
 
+def _known_families():
+    """Returns a dictionary of the known microarchitecture families."""
+
+    known_families = {}
+    for name, arch in _known_microarchitectures().items():
+        if not arch.parents:
+            known_families[name] = arch
+    return known_families
+
+
+def _known_features():
+    """Returns a dictionary of all the known features for each family."""
+
+    known_features = {}
+    for arch in _known_microarchitectures().values():
+        if arch.family.name not in known_features:
+            known_features[arch.family.name] = set()
+        known_features[arch.family.name].update(arch.features)
+    return known_features
+
+
 #: Dictionary of known micro-architectures
 TARGETS = LazyDictionary(_known_microarchitectures)
 
