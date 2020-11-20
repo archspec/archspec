@@ -382,6 +382,17 @@ def _known_features():
     return known_features
 
 
+def _known_vendors():
+    """Returns a dictionary of all the known vendors for each family."""
+
+    known_vendors = {}
+    for arch in _known_microarchitectures().values():
+        if arch.family.name not in known_vendors:
+            known_vendors[arch.family.name] = set()
+        known_vendors[arch.family.name].update([arch.vendor])
+    return known_vendors
+
+
 #: Dictionary of known micro-architectures
 TARGETS = LazyDictionary(_known_microarchitectures)
 
