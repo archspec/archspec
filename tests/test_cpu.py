@@ -254,6 +254,8 @@ def test_target_json_schema():
             "-march=core-avx2 -mtune=core-avx2",
             marks=pytest.mark.filterwarnings("ignore::UserWarning"),
         ),
+        # Test AMD aocc
+        ("zen2", "aocc", "2.2", "-march=znver2 -mtune=znver2"),
         # Test that an unknown compiler returns an empty string
         ("sandybridge", "unknown", "4.8.5", ""),
     ],
