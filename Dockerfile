@@ -5,7 +5,7 @@ FROM registry.access.redhat.com/ubi8/python-38
 
 USER root
 
-RUN pip3 install archspec
+RUN pip3 install --no-cache-dir archspec
 
 RUN useradd archspec
 USER archspec
