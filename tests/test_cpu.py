@@ -39,6 +39,7 @@ from archspec.cpu import Microarchitecture
         "darwin-mojave-ivybridge",
         "darwin-mojave-haswell",
         "darwin-mojave-skylake",
+        "darwin-bigsur-m1",
         "bgq-rhel6-power7",
         "linux-amazon-graviton",
         "linux-amazon-graviton2",
