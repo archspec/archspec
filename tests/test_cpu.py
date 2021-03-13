@@ -27,6 +27,7 @@ from archspec.cpu import Microarchitecture
         "linux-rhel7-ivybridge",
         "linux-rhel7-haswell",
         "linux-rhel7-zen",
+        "linux-ubuntu20.04-zen3",
         "linux-scientific7-k10",
         "linux-scientificfermi6-bulldozer",
         "linux-scientificfermi6-piledriver",
