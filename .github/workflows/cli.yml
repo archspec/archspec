@@ -1,0 +1,41 @@
+name: CLI tests
+
+on:
+  push:
+  pull_request:
+  schedule:
+  - cron: "0 4 * * *"
+
+jobs:
+  build:
+
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+        python-version: [2.7, 3.5, 3.6, 3.7, 3.8]
+
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        submodules: true
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v2
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install dependencies (Common)
+      run: |
+        pip install poetry
+    - name: Run archspec commands
+      run: |
+        poetry install
+        poetry run archspec cpu
+        poetry run archspec graph
+    - name: Render output of archspec graph --dag
+      if: ${{ matrix.os == 'ubuntu-latest' }}
+      run: |
+        sudo apt-get install graphviz
+        poetry run archspec graph --cpu | dot -T pdf -o archspec_cpu_dag.pdf;
+        ls -l archspec_cpu_dag.pdf;
