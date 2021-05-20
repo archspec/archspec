@@ -144,6 +144,15 @@ def test_equality(supported_target):
         ("cascadelake >= cannonlake", False),
         ("cascadelake == cannonlake", False),
         ("cascadelake != cannonlake", True),
+        # Test ordering wih x86_64 virtual versions
+        ("x86_64 < x86_64_v2", True),
+        ("x86_64_v4 < x86_64_v2", False),
+        ("core2 > x86_64_v2", False),
+        ("nehalem > x86_64_v2", True),
+        ("bulldozer > x86_64_v2", True),
+        ("excavator > x86_64_v2", True),
+        ("excavator > x86_64_v3", True),
+        ("zen > x86_64_v3", True),
     ],
 )
 def test_partial_ordering(operation, expected_result):
@@ -156,7 +165,12 @@ def test_partial_ordering(operation, expected_result):
 
 @pytest.mark.parametrize(
     "target_name,expected_family",
-    [("skylake", "x86_64"), ("zen", "x86_64"), ("pentium2", "x86")],
+    [
+        ("skylake", "x86_64"),
+        ("zen", "x86_64"),
+        ("pentium2", "x86"),
+        ("excavator", "x86_64"),
+    ],
 )
 def test_architecture_family(target_name, expected_family):
     target = archspec.cpu.TARGETS[target_name]
