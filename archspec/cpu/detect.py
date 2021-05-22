@@ -206,11 +206,26 @@ def host():
     # Get a list of possible candidates for this micro-architecture
     candidates = compatible_microarchitectures(info)
 
+    # Sorting criteria for candidates
+    def sorting_fn(item):
+        return len(item.ancestors), len(item.features)
+
+    # Get the best generic micro-architecture
+    generic_candidates = [c for c in candidates if c.vendor == "generic"]
+    best_generic = sorted(generic_candidates, key=sorting_fn, reverse=True)[0]
+
+    # Filter the candidates to be descendant of the best generic candidate.
+    # This is to avoid that the lack of a niche feature that can be disabled
+    # from e.g. BIOS prevents detection of a reasonably performant architecture
+    candidates = [c for c in candidates if c > best_generic]
+
+    # If we don't have candidates, return the best generic micro-architecture
+    if not candidates:
+        return best_generic
+
     # Reverse sort of the depth for the inheritance tree among only targets we
     # can use. This gets the newest target we satisfy.
-    return sorted(
-        candidates, key=lambda t: (len(t.ancestors), len(t.features)), reverse=True
-    )[0]
+    return sorted(candidates, key=sorting_fn, reverse=True)[0]
 
 
 def compatibility_check(architecture_family):

@@ -26,6 +26,7 @@ from archspec.cpu import Microarchitecture
         "linux-rhel7-skylake_avx512",
         "linux-rhel7-ivybridge",
         "linux-rhel7-haswell",
+        "linux-rhel7-x86_64_v3",
         "linux-rhel7-zen",
         "linux-ubuntu20.04-zen3",
         "linux-scientific7-k10",
