@@ -220,8 +220,6 @@ def host():
     candidates = [c for c in candidates if c > best_generic]
 
     # If we don't have candidates, return the best generic micro-architecture
-    # TODO: When dropping Python 2.X
-    # TODO: return max(candidates, key=sorting_fn, default=best_generic)
     if not candidates:
         return best_generic
 
