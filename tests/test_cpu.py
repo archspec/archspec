@@ -335,3 +335,19 @@ def test_all_alias_predicates_are_implemented():
     aliases_in_schema = set(fa_schema["patternProperties"]["([\\w]*)"]["properties"])
     aliases_implemented = set(archspec.cpu.alias._FEATURE_ALIAS_PREDICATE)
     assert aliases_implemented == aliases_in_schema
+
+
+@pytest.mark.parametrize(
+    "target,expected",
+    [
+        ("haswell", "x86_64_v3"),
+        ("bulldozer", "x86_64_v2"),
+        ("zen2", "x86_64_v3"),
+        ("icelake", "x86_64_v4"),
+        # Check that a generic level returns itself
+        ("x86_64_v3", "x86_64_v3"),
+    ],
+)
+def test_uarch_level(target, expected):
+    t = archspec.cpu.TARGETS[target]
+    assert str(t.level) == expected
