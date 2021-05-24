@@ -350,4 +350,4 @@ def test_all_alias_predicates_are_implemented():
 )
 def test_uarch_level(target, expected):
     t = archspec.cpu.TARGETS[target]
-    assert str(t.level) == expected
+    assert str(t.generic) == expected
