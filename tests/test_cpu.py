@@ -348,6 +348,6 @@ def test_all_alias_predicates_are_implemented():
         ("x86_64_v3", "x86_64_v3"),
     ],
 )
-def test_uarch_level(target, expected):
+def test_generic_property(target, expected):
     t = archspec.cpu.TARGETS[target]
     assert str(t.generic) == expected
