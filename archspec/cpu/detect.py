@@ -212,7 +212,7 @@ def host():
 
     # Get the best generic micro-architecture
     generic_candidates = [c for c in candidates if c.vendor == "generic"]
-    best_generic = sorted(generic_candidates, key=sorting_fn, reverse=True)[0]
+    best_generic = max(generic_candidates, key=sorting_fn)
 
     # Filter the candidates to be descendant of the best generic candidate.
     # This is to avoid that the lack of a niche feature that can be disabled
@@ -220,12 +220,14 @@ def host():
     candidates = [c for c in candidates if c > best_generic]
 
     # If we don't have candidates, return the best generic micro-architecture
+    # TODO: When dropping Python 2.X
+    # TODO: return max(candidates, key=sorting_fn, default=best_generic)
     if not candidates:
         return best_generic
 
     # Reverse sort of the depth for the inheritance tree among only targets we
     # can use. This gets the newest target we satisfy.
-    return sorted(candidates, key=sorting_fn, reverse=True)[0]
+    return max(candidates, key=sorting_fn)
 
 
 def compatibility_check(architecture_family):
