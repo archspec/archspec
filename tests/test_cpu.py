@@ -26,6 +26,7 @@ from archspec.cpu import Microarchitecture
         "linux-rhel7-skylake_avx512",
         "linux-rhel7-ivybridge",
         "linux-rhel7-haswell",
+        "linux-rhel7-x86_64_v3",
         "linux-rhel7-zen",
         "linux-ubuntu20.04-zen3",
         "linux-scientific7-k10",
@@ -334,3 +335,19 @@ def test_all_alias_predicates_are_implemented():
     aliases_in_schema = set(fa_schema["patternProperties"]["([\\w]*)"]["properties"])
     aliases_implemented = set(archspec.cpu.alias._FEATURE_ALIAS_PREDICATE)
     assert aliases_implemented == aliases_in_schema
+
+
+@pytest.mark.parametrize(
+    "target,expected",
+    [
+        ("haswell", "x86_64_v3"),
+        ("bulldozer", "x86_64_v2"),
+        ("zen2", "x86_64_v3"),
+        ("icelake", "x86_64_v4"),
+        # Check that a generic level returns itself
+        ("x86_64_v3", "x86_64_v3"),
+    ],
+)
+def test_generic_property(target, expected):
+    t = archspec.cpu.TARGETS[target]
+    assert str(t.generic) == expected
