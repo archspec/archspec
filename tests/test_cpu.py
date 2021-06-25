@@ -275,6 +275,8 @@ def test_target_json_schema():
         ("zen2", "aocc", "2.2", "-march=znver2 -mtune=znver2"),
         # Test that an unknown compiler returns an empty string
         ("sandybridge", "unknown", "4.8.5", ""),
+        # Test ARM compiler support
+        ("a64fx", "arm", "21.0", "-march=armv8.2-a+crc+crypto+fp16+sve"),
     ],
 )
 def test_optimization_flags(target_name, compiler, version, expected_flags):
