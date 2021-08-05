@@ -16,7 +16,7 @@ import archspec.cpu.detect
 import archspec.cpu.schema
 
 # This is needed to check that with repr we could create equivalent objects
-from archspec.cpu import Microarchitecture
+Microarchitecture = archspec.cpu.Microarchitecture
 
 
 @pytest.fixture(
