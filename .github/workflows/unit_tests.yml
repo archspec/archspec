@@ -2,7 +2,9 @@ name: Unit tests
 
 on:
   push:
+    branches: [ master, 'releases/**' ]
   pull_request:
+    branches: [ master, 'releases/**' ]
   schedule:
   - cron: "0 4 * * *"
     
