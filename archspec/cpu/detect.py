@@ -260,7 +260,13 @@ def compatibility_check_for_power(info, target):
     """Compatibility check for PPC64 and PPC64LE architectures."""
     basename = platform.machine()
     generation_match = re.search(r"POWER(\d+)", info.get("cpu", ""))
-    generation = int(generation_match.group(1))
+    try:
+        generation = int(generation_match.group(1))
+    except AttributeError:
+        # There might be no match under emulated environments. For instance
+        # emulating a ppc64le with QEMU and Docker still reports the host
+        # /proc/cpuinfo and not a Power
+        generation = 0
 
     # We can use a target if it descends from our machine type and our
     # generation (9 for POWER9, etc) is at least its generation.
