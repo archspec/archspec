@@ -44,6 +44,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "bgq-rhel6-power7",
         "linux-amazon-graviton",
         "linux-amazon-graviton2",
+        "linux-sifive-u74mc",
     ]
 )
 def expected_target(request, monkeypatch):
