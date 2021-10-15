@@ -13,9 +13,9 @@ import warnings
 
 import six
 
-def host():
+def detect_devices():
     """Detects the host interconnect and returns it."""
-    interconnect_devices = [] 
+    interconnect_dict = {} 
     # check for network capable devices
     sys_class_net_path = "/sys/class/net/"
     if os.path.exists(sys_class_net_path): 
@@ -25,7 +25,7 @@ def host():
         with open(dev_state_fp, 'r') as fp:
           device_state = fp.readline().strip()
           if device_state == "up":
-            interconnect_devices.append("ethernet_" + device)
+            interconnect_dict.setdefault("ethernet", []).append(device)
 
     # check for infiniband capable devices
     sys_class_infiniband_path = "/sys/class/infiniband/"
@@ -36,7 +36,27 @@ def host():
         with open(dev_state_fp, 'r') as fp:
           device_state = fp.readline().strip()
           if device_state == "4: ACTIVE":
-            interconnect_devices.insert(0, "infiniband_" + device)
+            interconnect_dict.setdefault("infiniband", []).append(device)
 
-    return (interconnect_devices[0])
+    return (interconnect_dict)
 
+
+def host():
+    interconnect_dict = detect_devices()
+
+    # prefer infiniband over tcp devices
+    if "infiniband" in interconnect_dict:
+      return (interconnect_dict["infiniband"][0])
+    
+    # fallback to ethernet devices
+    if "ethernet" in interconnect_dict:
+      return (interconnect_dict["ethernet"][0])
+
+    # return empty if nothing found (should not happen)
+    return ()
+
+
+def raw_info_dictionary():
+    interconnect_dict = detect_devices()
+
+    return (interconnect_dict)
