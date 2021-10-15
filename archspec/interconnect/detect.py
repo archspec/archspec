@@ -25,14 +25,20 @@ def host():
           f = open(sys_class_net_path+device+"/operstate",'r')
           device_state = f.readline().strip()
           if device_state == "up":
-            interconnect_devices.append(device)
+            interconnect_devices.append("ethernet_"+device)
           f.close()
 
     # check for infiniband capable devices
     sys_class_infiniband_path = "/sys/class/infiniband/"
     if os.path.exists(sys_class_infiniband_path): 
       infiniband_devices = [f for f in os.listdir(sys_class_infiniband_path)] 
-      print(infiniband_devices)
+      for device in infiniband_devices:
+        if os.path.exists(sys_class_infiniband_path+device+"/ports/1/state"): 
+          f = open(sys_class_infiniband_path+device+"/ports/1/state",'r')
+          device_state = f.readline().strip()
+          if device_state == "4: ACTIVE":
+            interconnect_devices.insert(0,"infiniband_"+device)
+          f.close()
 
-    return (interconnect_devices)
+    return (interconnect_devices[0])
 
