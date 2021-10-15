@@ -46,11 +46,11 @@ def host():
 
     # prefer infiniband over tcp devices
     if "infiniband" in interconnect_dict:
-      return (interconnect_dict["infiniband"][0])
+      return ("infiniband_" + interconnect_dict["infiniband"][0])
     
     # fallback to ethernet devices
     if "ethernet" in interconnect_dict:
-      return (interconnect_dict["ethernet"][0])
+      return ("ethernet_" + interconnect_dict["ethernet"][0])
 
     # return empty if nothing found (should not happen)
     return ()
