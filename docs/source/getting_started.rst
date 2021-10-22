@@ -52,7 +52,7 @@ any release you can simply use ``pip``:
 
     $ pip install archspec[==<required-release>]
     $ python -c "import archspec; print(archspec.__version__)"
-    0.1.2
+    0.1.3
 
 This is the simplest way to install the package and getting
 started using it.
@@ -97,10 +97,10 @@ and installing Archspec:
 
       - Installing click (7.1.2)
       - Installing six (1.15.0)
-      - Installing archspec (0.1.2)
+      - Installing archspec (0.1.3)
 
     $ poetry run python -c "import archspec; print(archspec.__version__)"
-    0.1.2
+    0.1.3
 
 Poetry manages virtual environments for the user. Using ``poetry run`` is
 just one of the possibility offered by this tool, for further options
@@ -129,7 +129,7 @@ above:
       - Installing pytest (4.6.9)
       - Installing jsonschema (3.2.0)
       - Installing pytest-cov (2.8.1)
-      - Installing archspec (0.1.2)
+      - Installing archspec (0.1.3)
 
 At this point you can run unit-tests, linters or other checks. When
 developing we recommend to use Python ^3.6 so that the latest versions
