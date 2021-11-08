@@ -244,12 +244,7 @@ def compatibility_check(architecture_family):
         architecture_family = (architecture_family,)
 
     def decorator(func):
-        # pylint: disable=fixme
-        # TODO: on removal of Python 2.6 support this can be re-written as
-        # TODO: an update +  a dict comprehension
-        for arch_family in architecture_family:
-            COMPATIBILITY_CHECKS[arch_family] = func
-
+        COMPATIBILITY_CHECKS.update({family: func for family in architecture_family})
         return func
 
     return decorator
