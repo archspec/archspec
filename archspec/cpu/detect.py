@@ -61,7 +61,7 @@ def proc_cpuinfo():
     ``/proc/cpuinfo``
     """
     info = {}
-    with open("/proc/cpuinfo") as file:
+    with open("/proc/cpuinfo") as file:  # pylint: disable=unspecified-encoding
         for line in file:
             key, separator, value = line.partition(":")
 
@@ -80,7 +80,9 @@ def proc_cpuinfo():
 
 
 def _check_output(args, env):
-    output = subprocess.Popen(args, stdout=subprocess.PIPE, env=env).communicate()[0]
+    output = subprocess.Popen(  # pylint: disable=consider-using-with
+        args, stdout=subprocess.PIPE, env=env
+    ).communicate()[0]
     return six.text_type(output.decode("utf-8"))
 
 
@@ -283,7 +285,7 @@ def compatibility_check_for_x86_64(info, target):
     arch_root = TARGETS[basename]
     return (
         (target == arch_root or arch_root in target.ancestors)
-        and (target.vendor == vendor or target.vendor == "generic")
+        and target.vendor in (vendor, "generic")
         and target.features.issubset(features)
     )
 
@@ -298,7 +300,7 @@ def compatibility_check_for_aarch64(info, target):
     arch_root = TARGETS[basename]
     return (
         (target == arch_root or arch_root in target.ancestors)
-        and (target.vendor == vendor or target.vendor == "generic")
+        and target.vendor in (vendor, "generic")
         and target.features.issubset(features)
     )
 
