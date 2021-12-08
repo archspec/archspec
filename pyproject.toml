@@ -50,7 +50,7 @@ flake8 = [
   {version = "^4", python = "^3.6"}
 ]
 black = [
-  {version = "==21.12b0", python = "^3.6"}
+  {version = "==21.12b0", python = "^3.8"}
 ]
 sphinx = [
   {version = "^4", python = "^3.6"}
