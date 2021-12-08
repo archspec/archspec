@@ -80,9 +80,9 @@ def proc_cpuinfo():
 
 
 def _check_output(args, env):
-    output = subprocess.Popen(args, stdout=subprocess.PIPE, env=env).communicate()[
-        0
-    ]  # pylint: disable=consider-using-with
+    output = subprocess.Popen(  # pylint: disable=consider-using-with
+        args, stdout=subprocess.PIPE, env=env
+    ).communicate()[0]
     return six.text_type(output.decode("utf-8"))
 
 
