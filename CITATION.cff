@@ -1,0 +1,31 @@
+# Here's the raw citation:
+#
+# M. Culpo, G. Becker, C. E. A. Gutierrez, K. Hoste and T. Gamblin,
+# "archspec: A library for detecting, labeling, and reasoning about microarchitectures,"
+# 2020 2nd International Workshop on Containers and New Orchestration Paradigms for
+# Isolated Environments in HPC (CANOPIE-HPC), 2020, pp. 45-52,
+# doi: 10.1109/CANOPIEHPC51917.2020.00011.
+#
+cff-version: 1.2.0
+message: "If you are referencing archspec in a publication, please cite the paper below."
+preferred-citation:
+  type: conference-paper
+  doi: "10.1109/CANOPIEHPC51917.2020.00011"
+  url: "https://github.com/archspec/archspec"
+  authors:
+  - family-names: "Culpo"
+    given-names: "Massimiliano"
+  - family-names: "Becker"
+    given-names: "Gregory"
+  - family-names: "Gutierrez"
+    given-names: "Carlos Eduardo Arango"
+  - family-names: "Hoste"
+    given-names: "Kenneth"
+  - family-names: "Gamblin"
+    given-names: "Todd"
+  title: "archspec: A library for detecting, labeling, and reasoning about microarchitectures"
+  conference:
+    name: "2nd International Workshop on Containers and New Orchestration Paradigms for Isolated Environments in HPC (CANOPIE-HPC)"
+    country: "USA"
+  month: November 12
+  year: 2020
