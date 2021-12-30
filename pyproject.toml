@@ -48,19 +48,19 @@ scandir = [
 pytest-cov = "^2.8.1"
 coverage = "^5.3"
 pylint = [
-  {version = "^2", python = "^3.6"}
+  {version = "^2", python = "^3.7"}
 ]
 flake8 = [
-  {version = "^4", python = "^3.6"}
+  {version = "^4", python = "^3.7"}
 ]
 black = [
   {version = "==21.12b0", python = "^3.8"}
 ]
 sphinx = [
-  {version = "^4", python = "^3.6"}
+  {version = "^4", python = "^3.7"}
 ]
 sphinx_rtd_theme = [
-  {version = "^1", python = "^3.6"}
+  {version = "^1", python = "^3.7"}
 ]
 jsonschema = "^3.2.0"
 pyrsistent = [
