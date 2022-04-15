@@ -4,13 +4,146 @@
    SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 ======================
-CPU Microarchitectures
+CPU microarchitectures
 ======================
 
-A CPU microarchitecture is modeled in ``archspec`` by the
-:py:class:`archspec.cpu.Microarchitecture` class.
-Objects of this class are constructed automatically to
-populate a dictionary of known architectures:
+The primary goal of ``archspec`` is to be able to detect and label CPU microarchitectures
+at a granularity that allows reasoning about binary compatibility. Using this library a client
+can:
+
+1. Detect the microarchitecture of the current host, and compare it to a label on a binary
+   to determine whether they are compatible.
+2. Check if a particular microarchitecture supports a given feature
+3. Retrieve the flags to use for a particular compiler to build a binary specifically for
+   a microarchitecture
+
+
+.. _cpu_json_database:
+
+-------------
+JSON database
+-------------
+
+All the *static knowledge* of microarchitecture names, features, compiler support
+etc. is stored in a JSON file. The most important information there is
+the dictionary of known microarchitectures. An example record in this dictionary looks like:
+
+.. code-block:: json
+
+   "sandybridge": {
+      "from": ["westmere"],
+      "vendor": "GenuineIntel",
+      "features": [
+        "mmx",
+        "sse",
+        "sse2",
+        "ssse3",
+        "sse4_1",
+        "sse4_2",
+        "popcnt",
+        "aes",
+        "pclmulqdq",
+        "avx"
+      ],
+      "compilers": {
+        "gcc": [
+          {
+            "versions": "4.9:",
+            "flags": "-march={name} -mtune={name}"
+          },
+          {
+            "versions": "4.6:4.8.5",
+            "name": "corei7-avx",
+            "flags": "-march={name} -mtune={name}"
+          }
+        ],
+      }
+    },
+
+Each entry maps a unique, human-readable, label to corresponding information on:
+
+- The closest compatible microarchitecture
+- The vendor of the microarchitecture
+- The features that are available
+- The optimization support provided by compilers
+
+The granularity of the labels follow those used by compilers to emit processor-specific
+instructions, but the actual labels might differ a bit to enhance their readability
+(e.g. ``archspec`` refers to the ``steamroller`` microarchitecture as opposed to ``bdver3``).
+On top of this static information ``archspec`` provides language bindings with logic to
+detect, query and compare different microarchitectures.
+
+.. _cpu_host_detection:
+
+--------------
+Host detection
+--------------
+
+Detection of the host where ``archspec`` is being run can be performed with a simple function call:
+
+.. code-block:: python
+
+   >>> import archspec.cpu
+   >>> host = archspec.cpu.host()
+
+where the return value is a :py:class:`archspec.cpu.Microarchitecture` object. To obtain the
+label of the host one can simply convert this object to a string:
+
+.. code-block:: python
+
+   >>> str(host)
+   'cannonlake'
+
+If more information is needed the object can also be converted to a built-in dictionary:
+
+.. code-block:: python
+
+   >>> import pprint
+   >>> pprint.pprint(host.to_dict())
+   {'features': ['adx',
+                 'aes',
+                 'avx',
+                 'avx2',
+                 'avx512bw',
+                 'avx512cd',
+                 'avx512dq',
+                 'avx512f',
+                 'avx512ifma',
+                 'avx512vbmi',
+                 'avx512vl',
+                 'bmi1',
+                 'bmi2',
+                 'clflushopt',
+                 'f16c',
+                 'fma',
+                 'mmx',
+                 'movbe',
+                 'pclmulqdq',
+                 'popcnt',
+                 'rdrand',
+                 'rdseed',
+                 'sha',
+                 'sse',
+                 'sse2',
+                 'sse4_1',
+                 'sse4_2',
+                 'ssse3',
+                 'umip',
+                 'xsavec',
+                 'xsaveopt'],
+    'generation': 0,
+    'name': 'cannonlake',
+    'parents': ['skylake'],
+    'vendor': 'GenuineIntel'}
+
+.. _cpu_microarchitecture_object:
+
+----------------------
+Queries and comparison
+----------------------
+
+The list of all microarchitectures known by ``archspec`` is accessible through a global dictionary
+that maps the microarchitecture labels to a corresponding ``Microarchitecture`` object in memory:
 
 .. code-block:: python
 
@@ -18,24 +151,15 @@ populate a dictionary of known architectures:
     >>> archspec.cpu.TARGETS
     <archspec.cpu.schema.LazyDictionary object at 0x7fc7eae49650>
 
-    >>> len(archspec.cpu.TARGETS)
-    43
-
-``TARGETS`` maps the names of the microarchitectures to a corresponding
-``Microarchitecture`` object in memory:
-
-.. code-block:: python
-
     >>> archspec.cpu.TARGETS['broadwell']
     Microarchitecture('broadwell', ...)
 
-This dictionary is constructed lazily from data stored in
-a JSON file upon the first operation performed on it.
+    >>> len(archspec.cpu.TARGETS)
+    43
 
--------------
-Basic Queries
--------------
-
+This dictionary is constructed lazily from data stored in the :ref:`cpu_json_database`
+upon the first operation performed on it (e.g. the :ref:`cpu_host_detection` shown
+in the previous section).
 A ``Microarchitecture`` object can be queried for its name and vendor:
 
 .. code-block:: python
@@ -146,7 +270,7 @@ Sometimes compiler flags change across versions of the same compiler:
     >>> archspec.cpu.TARGETS['thunderx2'].optimization_flags('gcc', '5.1.0')
     '-march=armv8-a+crc+crypto'
 
-If a compiler if unknown to ``archspec`` an empty string is returned:
+If a compiler is unknown to ``archspec`` an empty string is returned:
 
 .. code-block:: python
 
