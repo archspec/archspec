@@ -301,7 +301,8 @@ def compatibility_check_for_aarch64(info, target):
     return (
         (target == arch_root or arch_root in target.ancestors)
         and target.vendor in (vendor, "generic")
-        and target.features.issubset(features)
+        # On macOS it seems impossible to get all the CPU features with syctl info
+        and (target.features.issubset(features) or platform.system() == "Darwin")
     )
 
 
