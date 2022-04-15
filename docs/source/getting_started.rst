@@ -22,9 +22,9 @@ by providing:
     microarchitectures but extensions to other aspects are expected in the future.
 
 
--------------------
-System requirements
--------------------
+---------------------
+Software requirements
+---------------------
 
 Archspec needs the following software:
 
@@ -36,7 +36,7 @@ Archspec needs the following software:
     * - `six <https://pypi.org/project/six/>`_
       - ^1.13.0
     * - `click <https://click.palletsprojects.com/en/7.x/>`_
-      - >=7.1.2,<8.0
+      - >=7.1.2
 
 It is a multiplatform project and currently works on linux and MacOS.
 Porting to Windows is expected in the future.
@@ -57,10 +57,8 @@ any release you can simply use ``pip``:
 This is the simplest way to install the package and getting
 started using it.
 
-.. TODO: Recommend using ``pip``?
-
 ---------------------------------
-Installing from GitHub Repository
+Installing from GitHub repository
 ---------------------------------
 
 Installing Archspec from a clone of its GitHub Repository
