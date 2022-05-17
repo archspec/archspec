@@ -41,6 +41,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "darwin-mojave-haswell",
         "darwin-mojave-skylake",
         "darwin-bigsur-m1",
+        "darwin-monterey-m1",
         "bgq-rhel6-power7",
         "linux-amazon-graviton",
         "linux-amazon-graviton2",
@@ -52,7 +53,14 @@ def expected_target(request, monkeypatch):
     cpu = archspec.cpu
     platform, operating_system, target = request.param.split("-")
 
-    architecture_family = archspec.cpu.TARGETS[target].family
+    # This is the default to use for tests on Darwin, since it will match
+    # Intel based MacBook, and will be the worst case scenario for Apple M1
+    # (i.e. Python for x86_64 running on top of Rosetta)
+    architecture_family = "x86_64"
+    # If the platform is not darwin, get the correct architecture
+    if platform != "darwin":
+        architecture_family = archspec.cpu.TARGETS[target].family
+
     monkeypatch.setattr(
         cpu.detect.platform, "machine", lambda: str(architecture_family)
     )
