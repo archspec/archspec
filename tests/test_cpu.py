@@ -45,6 +45,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "bgq-rhel6-power7",
         "linux-amazon-graviton",
         "linux-amazon-graviton2",
+        "linux-amazon-graviton3",
         "linux-sifive-u74mc",
         "linux-asahi-m1",
     ]
