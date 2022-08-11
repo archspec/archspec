@@ -48,6 +48,8 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-amazon-neoverse_v1",
         "linux-sifive-u74mc",
         "linux-asahi-m1",
+        "linux-asahi-m2",
+        "darwin-monterey-m2",
     ]
 )
 def expected_target(request, monkeypatch):
