@@ -156,7 +156,7 @@ def test_equality(supported_target):
         ("cascadelake >= cannonlake", False),
         ("cascadelake == cannonlake", False),
         ("cascadelake != cannonlake", True),
-        # Test ordering wih x86_64 virtual versions
+        # Test ordering with x86_64 virtual versions
         ("x86_64 < x86_64_v2", True),
         ("x86_64_v4 < x86_64_v2", False),
         ("core2 > x86_64_v2", False),
