@@ -48,7 +48,6 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-amazon-graviton3",
         "linux-sifive-u74mc",
         "linux-asahi-m1",
-        "linux-asahi-m2"
     ]
 )
 def expected_target(request, monkeypatch):
