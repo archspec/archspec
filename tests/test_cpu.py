@@ -43,9 +43,9 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "darwin-bigsur-m1",
         "darwin-monterey-m1",
         "bgq-rhel6-power7",
-        "linux-amazon-graviton",
-        "linux-amazon-graviton2",
-        "linux-amazon-graviton3",
+        "linux-amazon-cortex_a72",
+        "linux-amazon-neoverse_n1",
+        "linux-amazon-neoverse_v1",
         "linux-sifive-u74mc",
         "linux-asahi-m1",
     ]

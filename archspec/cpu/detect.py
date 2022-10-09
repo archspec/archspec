@@ -322,6 +322,11 @@ def compatibility_check_for_aarch64(info, target):
     features = set(info.get("Features", "").split())
     vendor = info.get("CPU implementer", "generic")
 
+    # FIXME: At the moment it's not clear how to detect compatibility with
+    # FIXME: a specific version of the architecture
+    if target.vendor == "generic" and target.name != "aarch64":
+        return False
+
     arch_root = TARGETS[basename]
     return (
         (target == arch_root or arch_root in target.ancestors)
