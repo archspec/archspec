@@ -19,7 +19,7 @@ be installed from VCS sources. The preferred method to install it is via
 its custom installer outside of any virtual environment:
 
 ```console
-curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+curl -sSL https://install.python-poetry.org | python3 -
 ```
 
 You can refer to [Poetry's documentation](https://python-poetry.org/docs/#installation)
@@ -30,7 +30,7 @@ to run unit test:
 pip install --user tox
 ```
 
-Finally you'll need to clone the repository:
+Finally, you'll need to clone the repository:
 
 ```console
 git clone --recursive https://github.com/archspec/archspec.git

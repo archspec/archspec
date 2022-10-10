@@ -68,7 +68,7 @@ its custom installer outside of any virtual environment:
 
 .. code-block:: console
 
-    $ curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
+    $ curl -sSL https://install.python-poetry.org | python3 -
 
 You can refer to `Poetry's documentation <https://python-poetry.org/docs/#installation>`_
 for further details or for other methods to install it.
