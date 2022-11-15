@@ -25,18 +25,17 @@ classifiers = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.7"
+python = "3.6.15 || ^3.7"
 click = "^8"
 
 [tool.poetry.dev-dependencies]
-pytest = "^7"
-pytest-cov = "^4"
-jsonschema = "^4"
-pylint = "^2"
-flake8 = "^5"
-black = [
-    { version = "^22.0.0", python = "^3.8" }
-]
+pytest = { version = "^7", python = "^3.7" }
+pytest-cov = { version = "^4", python = "^3.7" }
+jsonschema = { version = "^4", python = "^3.7" }
+pylint = { version = "^2", python = "^3.7" }
+flake8 = { version = "^5", python = "^3.7" }
+black = { version = "^22.0.0", python = "^3.8" }
+
 
 [tool.poetry.scripts]
 archspec = 'archspec.cli:main'
