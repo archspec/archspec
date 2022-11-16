@@ -1,75 +1,45 @@
 [tool.poetry]
 name = "archspec"
-version = "0.1.4"
+version = "0.2.0"
 description = "A library to query system architecture"
 license = "Apache-2.0 OR MIT"
 authors = ["archspec developers <maintainers@spack.io>"]
 maintainers = [
-"Greg Becker <maintainers@spack.io>",
-"Massimiliano Culpo <massimiliano.culpo@gmail.com>",
-"Todd Gamblin <maintainers@spack.io>",
-"Kenneth Hoste <kenneth.hoste@ugent.be>"
+    "Greg Becker <maintainers@spack.io>",
+    "Massimiliano Culpo <massimiliano.culpo@gmail.com>",
+    "Todd Gamblin <maintainers@spack.io>",
+    "Kenneth Hoste <kenneth.hoste@ugent.be>"
 ]
 repository = "https://github.com/archspec/archspec.git"
 homepage = "https://github.com/archspec/archspec"
 documentation = "https://archspec.readthedocs.io"
 readme = "README.md"
 classifiers = [
-"Development Status :: 3 - Alpha",
-"Intended Audience :: Developers",
-"Intended Audience :: Information Technology",
-"Intended Audience :: Science/Research",
-"Operating System :: MacOS",
-"Operating System :: POSIX :: Linux",
-"Operating System :: Unix"
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: Science/Research",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Unix"
 ]
 
 [tool.poetry.dependencies]
-python = "==2.7 || ^3.5"
-six = "^1.13.0"
-click = [
-  {version = "^8", python = '^3.6'},
-  {version = "^7", python = '==3.5'},
-  {version = "^7", python = '==2.7'}
-]
+python = "3.6.15 || ^3.7"
+click = "^8"
 
 [tool.poetry.dev-dependencies]
-pytest = [
-  {version = "^6", python = '^3.6'},
-  {version = "~5", python = '==3.5'},
-  {version = "~3", python = '==2.7'}
-]
-more_itertools = [
-  {version = "~5", python = '==2.7'}
-]
-scandir = [
-  {version = "~1", python = '==2.7'}
-]
-pytest-cov = "^2.8.1"
-coverage = "^5.3"
-pylint = [
-  {version = "^2", python = "^3.7"}
-]
-flake8 = [
-  {version = "^4", python = "^3.7"}
-]
-black = [
-  {version = "==21.12b0", python = "^3.8"}
-]
-sphinx = [
-  {version = "^4", python = "^3.7"}
-]
-sphinx_rtd_theme = [
-  {version = "^1", python = "^3.7"}
-]
-jsonschema = "^3.2.0"
-pyrsistent = [
-  {version="~0.16", python="==2.7"}
-]
+pytest = { version = "^7", python = "^3.7" }
+pytest-cov = { version = "^4", python = "^3.7" }
+jsonschema = { version = "^4", python = "^3.7" }
+pylint = { version = "^2", python = "^3.7" }
+flake8 = { version = "^5", python = "^3.7" }
+black = { version = "^22.0.0", python = "^3.8" }
+
 
 [tool.poetry.scripts]
 archspec = 'archspec.cli:main'
 
 [build-system]
-requires = ["poetry>=1.0.0"]
+requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
