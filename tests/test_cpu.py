@@ -50,6 +50,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-asahi-m1",
         "linux-asahi-m2",
         "darwin-monterey-m2",
+        "linux-rocky8-a64fx",
     ]
 )
 def expected_target(request, monkeypatch):
