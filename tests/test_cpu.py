@@ -29,6 +29,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-rhel7-x86_64_v3",
         "linux-rhel7-zen",
         "linux-ubuntu20.04-zen3",
+        "linux-ubuntu20.04-zen4",
         "linux-scientific7-k10",
         "linux-scientificfermi6-bulldozer",
         "linux-scientificfermi6-piledriver",
