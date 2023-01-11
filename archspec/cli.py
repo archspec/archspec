@@ -15,15 +15,6 @@ import archspec
 import archspec.cpu
 
 
-class ErrorCatchingArgumentParser(argparse.ArgumentParser):
-    """An `ArgumentParser` that doesn't exit by itself.
-    """
-
-    def exit(self, status=0, message=None):
-        if status:
-            raise argparse.ArgumentError(None, message)
-
-
 def _make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         "archspec",
