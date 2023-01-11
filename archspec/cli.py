@@ -9,8 +9,6 @@ archspec command line interface
 import argparse
 import typing
 
-import click
-
 import archspec
 import archspec.cpu
 
@@ -20,7 +18,6 @@ def _make_parser() -> argparse.ArgumentParser:
         "archspec",
         description="archspec command line interface",
         add_help=False,
-        exit_on_error=False,
     )
     parser.add_argument(
         "--version",
@@ -44,6 +41,7 @@ def _make_parser() -> argparse.ArgumentParser:
 
     cpu_command = subcommands.add_parser(
         "cpu",
+        help="archspec command line interface for CPU",
         description="archspec command line interface for CPU",
     )
     cpu_command.set_defaults(run=cpu)
