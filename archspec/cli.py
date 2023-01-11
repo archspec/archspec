@@ -24,14 +24,9 @@ def _make_parser() -> argparse.ArgumentParser:
         "-V",
         help="Show the version and exit.",
         action="version",
-        version="archspec, version {}".format(archspec.__version__),
+        version=f"archspec, version {archspec.__version__}",
     )
-    parser.add_argument(
-        "--help",
-        "-h",
-        help="Show the help and exit.",
-        action="help"
-    )
+    parser.add_argument("--help", "-h", help="Show the help and exit.", action="help")
 
     subcommands = parser.add_subparsers(
         title="command",
@@ -49,12 +44,14 @@ def _make_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def cpu(args: argparse.Namespace) -> int:
+def cpu() -> int:
+    """Run the `archspec cpu` subcommand."""
     print(archspec.cpu.host())
     return 0
 
 
 def main(argv: typing.Optional[typing.List[str]] = None) -> int:
+    """Run the `archspec` command line interface."""
     parser = _make_parser()
 
     try:
@@ -66,5 +63,4 @@ def main(argv: typing.Optional[typing.List[str]] = None) -> int:
         parser.print_help()
         return 0
 
-    return args.run(args)
-
+    return args.run()
