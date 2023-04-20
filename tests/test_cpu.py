@@ -292,6 +292,11 @@ def test_target_json_schema():
         ("sandybridge", "unknown", "4.8.5", ""),
         # Test ARM compiler support
         ("a64fx", "arm", "21.0", "-march=armv8.2-a+crc+crypto+fp16+sve"),
+        # Test NVHPC compiler support
+        ("icelake", "nvhpc", "23", "-tp skylake"),
+        ("bulldozer", "nvhpc", "23", "-tp bulldozer"),
+        ("neoverse_n1", "nvhpc", "23", "-tp neoverse-n1"),
+        ("power8le", "nvhpc", "23", "-tp pwr8"),
     ],
 )
 def test_optimization_flags(target_name, compiler, version, expected_flags):
@@ -302,7 +307,13 @@ def test_optimization_flags(target_name, compiler, version, expected_flags):
 
 @pytest.mark.parametrize(
     "target_name,compiler,version",
-    [("excavator", "gcc", "4.8.5"), ("broadwell", "apple-clang", "7.0.0")],
+    [
+        ("excavator", "gcc", "4.8.5"),
+        ("broadwell", "apple-clang", "7.0.0"),
+        ("x86_64", "nvhpc", "23"),
+        ("x86_64_v2", "nvhpc", "23"),
+        ("ppc64le", "nvhpc", "23"),
+    ],
 )
 def test_unsupported_optimization_flags(target_name, compiler, version):
     target = archspec.cpu.TARGETS[target_name]
