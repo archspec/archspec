@@ -88,25 +88,64 @@ def _machine():
     operating_system = platform.system()
 
     # If we are not on Darwin, trust what Python tells us
-    if operating_system != "Darwin":
+    if operating_system != "Darwin" and operating_system != "Windows":
         return platform.machine()
 
-    # On Darwin it might happen that we are on M1, but using an interpreter
-    # built for x86_64. In that case "platform.machine() == 'x86_64'", so we
-    # need to fix that.
-    #
-    # See: https://bugs.python.org/issue42704
-    output = _check_output(
-        ["sysctl", "-n", "machdep.cpu.brand_string"], env=_ensure_bin_usrbin_in_path()
-    ).strip()
+    if operating_system == "Darwin":
+        # On Darwin it might happen that we are on M1, but using an interpreter
+        # built for x86_64. In that case "platform.machine() == 'x86_64'", so we
+        # need to fix that.
+        #
+        # See: https://bugs.python.org/issue42704
+        output = _check_output(
+            ["sysctl", "-n", "machdep.cpu.brand_string"], env=_ensure_bin_usrbin_in_path()
+        ).strip()
 
-    if "Apple" in output:
-        # Note that a native Python interpreter on Apple M1 would return
-        # "arm64" instead of "aarch64". Here we normalize to the latter.
-        return "aarch64"
+        if "Apple" in output:
+            # Note that a native Python interpreter on Apple M1 would return
+            # "arm64" instead of "aarch64". Here we normalize to the latter.
+            return "aarch64"
 
     return "x86_64"
 
+
+@info_dict(operating_system="Windows")
+def wmic_cpuinfo():
+    output = _check_output(["wmic", "cpu", "list", "/format:list"], env=_ensure_bin_usrbin_in_path())
+    lines = output.splitlines()
+    while("" in lines):
+        lines.remove("")
+
+    win_info = {}
+    for line in lines:
+            key, separator, value = line.partition("=")
+
+            win_info[key.strip()] = value.strip()
+
+    info = {}
+
+    for tag in ['Caption', 'Description']:
+        if not tag in win_info:
+            continue
+
+        parts = win_info[tag].split()
+        for inner_tag, swap in [('Family', 'cpu family'), ('Model', 'model'), ('Stepping', 'stepping')]:
+            try:
+                idx = parts.index(inner_tag)
+                info[swap] = parts[idx + 1]
+            except:
+                continue
+
+    swaps = [
+        ('ProcessorType', 'processor'),
+        ('Manufacturer', 'vendor_id'),
+        ('Name', 'model name')
+             ]
+    for swap in swaps:
+        if swap[0] in win_info:
+            info[swap[1]] = win_info[swap[0]]
+
+    return info
 
 @info_dict(operating_system="Darwin")
 def sysctl_info_dict():
