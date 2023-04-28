@@ -133,8 +133,8 @@ def wmic_cpuinfo():
             try:
                 idx = parts.index(inner_tag)
                 info[swap] = parts[idx + 1]
-            except:
-                continue
+            except (ValueError, IndexError):
+                pass
 
     swaps = [
         ('ProcessorType', 'processor'),
