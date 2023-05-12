@@ -88,7 +88,7 @@ def _machine():
     operating_system = platform.system()
 
     # If we are not on Darwin, trust what Python tells us
-    if operating_system != "Darwin" and operating_system != "Windows":
+    if operating_system not in ("Darwin", "Windows"):
         return platform.machine()
 
     if operating_system == "Darwin":
@@ -111,29 +111,34 @@ def _machine():
 
 @info_dict(operating_system="Windows")
 def wmic_cpuinfo():
-    output = _check_output(["wmic", "cpu", "list", "/format:list"], env=_ensure_bin_usrbin_in_path())
+    """Returns a raw info dictionary parsing the output of wmic."""
+    output = _check_output(
+        ["wmic", "cpu", "list", "/format:list"], env=_ensure_bin_usrbin_in_path()
+    )
     lines = output.splitlines()
-    while("" in lines):
+    while "" in lines:
         lines.remove("")
 
     win_info = {}
     for line in lines:
-            key, separator, value = line.partition("=")
+        key, _, value = line.partition("=")
 
-            win_info[key.strip()] = value.strip()
+        win_info[key.strip()] = value.strip()
 
     info = {}
 
     for tag in ['Caption', 'Description']:
-        if not tag in win_info:
+        if tag not in win_info:
             continue
 
         parts = win_info[tag].split()
-        for inner_tag, swap in [('Family', 'cpu family'), ('Model', 'model'), ('Stepping', 'stepping')]:
+        pairs = [('Family', 'cpu family'), ('Model', 'model'), ('Stepping', 'stepping')]
+        for inner_tag, swap in pairs:
             try:
                 idx = parts.index(inner_tag)
                 info[swap] = parts[idx + 1]
             except (ValueError, IndexError):
+                # Could not find this field but should continue to try and find others
                 pass
 
     swaps = [
@@ -146,6 +151,7 @@ def wmic_cpuinfo():
             info[swap[1]] = win_info[swap[0]]
 
     return info
+
 
 @info_dict(operating_system="Darwin")
 def sysctl_info_dict():
