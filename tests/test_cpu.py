@@ -253,6 +253,7 @@ def test_target_json_schema():
         ("sandybridge", "gcc", "4.8.5", "-march=corei7-avx -mtune=corei7-avx"),
         ("thunderx2", "gcc", "4.8.5", "-march=armv8-a"),
         ("thunderx2", "gcc", "4.9.3", "-march=armv8-a+crc+crypto"),
+        ("neoverse_v1", "gcc", "12.1.0", "-mcpu=neoverse-v1"),
         # Test Apple's Clang
         ("x86_64", "apple-clang", "11.0.0", "-march=x86-64"),
         (
@@ -379,3 +380,13 @@ def test_all_alias_predicates_are_implemented():
 def test_generic_property(target, expected):
     t = archspec.cpu.TARGETS[target]
     assert str(t.generic) == expected
+
+
+def test_versions_are_ranges(supported_target):
+    """Tests that all the copmiler versions in the JSON file are ranges, containing an
+    explicit ':' character.
+    """
+    target_under_test = archspec.cpu.TARGETS[supported_target]
+    for compiler_name, entries in target_under_test.compilers.items():
+        for compiler_info in entries:
+            assert ":" in compiler_info["versions"]
