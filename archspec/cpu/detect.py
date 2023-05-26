@@ -98,7 +98,8 @@ def _machine():
         #
         # See: https://bugs.python.org/issue42704
         output = _check_output(
-            ["sysctl", "-n", "machdep.cpu.brand_string"], env=_ensure_bin_usrbin_in_path()
+            ["sysctl", "-n", "machdep.cpu.brand_string"],
+            env=_ensure_bin_usrbin_in_path()
         ).strip()
 
         if "Apple" in output:
