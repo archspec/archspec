@@ -32,7 +32,8 @@ jobs:
         cache: pip
     - name: Install dependencies (Common)
       run: |
-        pip install poetry tox-gh-actions coverage
+        pip install -U pip
+        pip install -U poetry tox-gh-actions coverage
     - name: Run tests with tox
       run: |
         tox
