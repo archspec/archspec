@@ -9,7 +9,7 @@ on:
   - cron: "0 4 * * *"
     
 jobs:
-  build:
+  tox:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -17,9 +17,6 @@ jobs:
           - ubuntu-latest
           - macos-latest
         python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
-        include:
-          - os: ubuntu-20.04
-            python-version: "3.6"
 
     steps:
     - uses: actions/checkout@v3
@@ -33,7 +30,7 @@ jobs:
     - name: Install dependencies (Common)
       run: |
         pip install -U pip
-        pip install -U poetry tox-gh-actions coverage
+        pip install -U poetry tox-gh coverage
     - name: Run tests with tox
       run: |
         tox
@@ -43,3 +40,27 @@ jobs:
       with:
         file: ./coverage.xml
         flags: unittests
+  py36:
+    runs-on: ubuntu-20.04
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        submodules: true
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+        cache: pip
+    - name: Install test dependencies
+      run: |
+        pip install -U pip
+        pip install -U pytest pytest-cov jsonschema
+    - name: Run tests
+      run: |
+        pytest --cov=archspec
+    - name: Upload to codecov.io
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.xml
+        flags: unittests
+
