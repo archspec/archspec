@@ -236,8 +236,15 @@ class Microarchitecture:
             version, _ = version_components(version)
 
             # Assume compiler versions fit into semver
+            # Anything that doesn't parse as an int will be treated as 0
+            def intify(ver):
+                try:
+                    return int(y)
+                except ValueError:
+                    return 0
+
             def tuplify(ver):
-                return tuple(int(y) for y in ver.split("."))
+                return tuple(intify(y) for y in ver.split("."))
 
             version = tuplify(version)
             if min_version:
