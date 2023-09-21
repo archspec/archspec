@@ -34,7 +34,7 @@ optional = true
 pytest = { version = "^7", python = "^3.7" }
 pytest-cov = { version = "^4", python = "^3.7" }
 jsonschema = { version = "^4", python = "^3.7" }
-typing-extensions = { version = "==4.7.1", python = "<3.8"}
+typing-extensions = { version = "==4.7.1", python = "==3.7"}
 
 [tool.poetry.group.linters]
 optional = true
