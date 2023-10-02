@@ -1,3 +1,3 @@
-sphinx
-sphinx_rtd_theme
-archspec
+sphinx==7.2.6
+sphinx_rtd_theme==1.3.0
+
