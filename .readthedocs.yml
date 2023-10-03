@@ -5,6 +5,10 @@ build:
   tools:
     python: "3.11"
 
+submodules:
+  include: all
+  recursive: true
+
 sphinx:
   configuration: docs/source/conf.py
   fail_on_warning: true
