@@ -5,6 +5,10 @@ build:
   tools:
     python: "3.11"
 
+submodules:
+  include: all
+  recursive: true
+
 sphinx:
   configuration: docs/source/conf.py
   fail_on_warning: true
@@ -12,3 +16,5 @@ sphinx:
 python:
   install:
     - requirements: docs/requirements.txt
+    - method: pip
+      path: .
