@@ -12,7 +12,8 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../archspec'))
+
+sys.path.insert(0, os.path.abspath('../../../archspec'))
 
 
 # -- Project information -----------------------------------------------------
