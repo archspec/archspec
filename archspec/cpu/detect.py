@@ -109,19 +109,45 @@ def proc_cpuinfo() -> Microarchitecture:
     return generic_microarchitecture(architecture)
 
 
+@info_dict(operating_system="Windows")
+def proc_py_cpuinfo():
+    """Returns a raw info dictionary by using py-cpuinfo
+    """
+    import cpuinfo
+    data = cpuinfo.get_cpu_info()
+    return {
+        "vendor_id": data["vendor_id_raw"],
+        "flags": " ".join(data["flags"]),
+        "model": data["model"],
+        "model name": data["brand_raw"],
+        "cpu family": data["family"],
+    }
+
+
 def _check_output(args, env):
     with subprocess.Popen(args, stdout=subprocess.PIPE, env=env) as proc:
         output = proc.communicate()[0]
     return str(output.decode("utf-8"))
 
 
+WINDOWS_MAPPING = {
+    "AMD64": "x86_64",
+    "ARM64": "aarch64",
+}
+
+
 def _machine():
     """Return the machine architecture we are on"""
     operating_system = platform.system()
 
-    # If we are not on Darwin, trust what Python tells us
-    if operating_system != "Darwin":
+    # If we are not on Darwin or Wmindows, trust what Python tells us
+    if operating_system not in ("Darwin", "Windows"):
         return platform.machine()
+
+    # Normalize windows specific names
+    if operating_system == "Windows":
+        platform_machine = platform.machine()
+        return WINDOWS_MAPPING.get(platform_machine, platform_machine)
 
     # On Darwin it might happen that we are on M1, but using an interpreter
     # built for x86_64. In that case "platform.machine() == 'x86_64'", so we
