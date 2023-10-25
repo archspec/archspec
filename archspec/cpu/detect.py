@@ -79,9 +79,9 @@ def proc_cpuinfo():
 
 @info_dict(operating_system="Windows")
 def proc_py_cpuinfo():
-    """Returns a raw info dictionary by using py-cpuinfo
-    """
+    """Returns a raw info dictionary by using py-cpuinfo"""
     import cpuinfo
+
     data = cpuinfo.get_cpu_info()
     return {
         "vendor_id": data["vendor_id_raw"],
