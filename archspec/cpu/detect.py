@@ -143,7 +143,7 @@ def _machine():
     """Return the machine architecture we are on"""
     operating_system = platform.system()
 
-    # If we are not on Darwin or Wmindows, trust what Python tells us
+    # If we are not on Darwin or Windows, trust what Python tells us
     if operating_system not in ("Darwin", "Windows"):
         return platform.machine()
 
