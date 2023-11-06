@@ -56,6 +56,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-unknown-sapphirerapids",
         "linux-rhel8-power9",
         "linux-unknown-power10",
+        "linux-ubuntu22.04-neoverse_v2",
     ]
 )
 def expected_target(request, monkeypatch):
