@@ -80,7 +80,10 @@ def proc_cpuinfo():
 @info_dict(operating_system="Windows")
 def proc_py_cpuinfo():
     """Returns a raw info dictionary by using py-cpuinfo"""
-    import cpuinfo
+    try:
+        import cpuinfo
+    except ImportError:
+        return
 
     data = cpuinfo.get_cpu_info()
     return {
