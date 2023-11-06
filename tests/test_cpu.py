@@ -54,6 +54,8 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-rocky8-a64fx",
         "linux-amazon2-sapphirerapids",
         "linux-unknown-sapphirerapids",
+        "linux-rhel8-power9",
+        "linux-unknown-power10",
     ]
 )
 def expected_target(request, monkeypatch):
