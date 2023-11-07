@@ -83,7 +83,7 @@ def proc_py_cpuinfo():
     try:
         import cpuinfo
     except ImportError:
-        return
+        return {}
 
     data = cpuinfo.get_cpu_info()
     return {
