@@ -86,26 +86,28 @@ def _check_output(args, env):
 def _machine():
     """ "Return the machine architecture we are on"""
     operating_system = platform.system()
+    machine = platform.machine()
 
-    # If we are not on Darwin, trust what Python tells us
-    if operating_system != "Darwin":
-        return platform.machine()
-
-    # On Darwin it might happen that we are on M1, but using an interpreter
-    # built for x86_64. In that case "platform.machine() == 'x86_64'", so we
-    # need to fix that.
-    #
-    # See: https://bugs.python.org/issue42704
-    output = _check_output(
-        ["sysctl", "-n", "machdep.cpu.brand_string"], env=_ensure_bin_usrbin_in_path()
-    ).strip()
-
-    if "Apple" in output:
+    if machine == "arm64":
         # Note that a native Python interpreter on Apple M1 would return
         # "arm64" instead of "aarch64". Here we normalize to the latter.
         return "aarch64"
 
-    return "x86_64"
+    return machine
+
+
+def _using_rossetta():
+    """ Return whether we are using x86_64 emulation on Darwin"""
+    operating_system = platform.system()
+
+    if operating_system != "Darwin":
+        return False
+
+    output = _check_output(
+        ["sysctl", "-n", "machdep.cpu.brand_string"], env=_ensure_bin_usrbin_in_path()
+    ).strip()
+
+    return "Apple" in output
 
 
 @info_dict(operating_system="Darwin")
@@ -116,18 +118,33 @@ def sysctl_info_dict():
     def sysctl(*args):
         return _check_output(["sysctl"] + list(args), env=child_environment).strip()
 
+    def sysctl_x86_64(*args):
+        return _check_output(["arch", "-x86_64", "sysctl"] + list(args),
+                             env=child_environment).strip()
+
     if _machine() == "x86_64":
-        flags = (
-            sysctl("-n", "machdep.cpu.features").lower()
-            + " "
-            + sysctl("-n", "machdep.cpu.leaf7_features").lower()
-        )
-        info = {
-            "vendor_id": sysctl("-n", "machdep.cpu.vendor"),
-            "flags": flags,
-            "model": sysctl("-n", "machdep.cpu.model"),
-            "model name": sysctl("-n", "machdep.cpu.brand_string"),
-        }
+        if _using_rossetta():
+            flags = sysctl_x86_64("-n", "machdep.cpu.features").lower()
+            # Apple uses these values for the virtual machine in cpuid
+            # assembly instruction
+            info = {
+                "vendor_id": "GenuineIntel",
+                "flags": flags,
+                "model": "44",
+                "model name": "VirtualApple @ 2.50GHz",
+            }
+        else:
+            flags = (
+                sysctl("-n", "machdep.cpu.features").lower()
+                + " "
+                + sysctl("-n", "machdep.cpu.leaf7_features").lower()
+            )
+            info = {
+                "vendor_id": sysctl("-n", "machdep.cpu.vendor"),
+                "flags": flags,
+                "model": sysctl("-n", "machdep.cpu.model"),
+                "model name": sysctl("-n", "machdep.cpu.brand_string"),
+            }
     else:
         model = "unknown"
         model_str = sysctl("-n", "machdep.cpu.brand_string").lower()
