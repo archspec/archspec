@@ -13,6 +13,7 @@ import warnings
 
 from .microarchitecture import generic_microarchitecture, TARGETS
 from .schema import TARGETS_JSON
+from .cpuid import get_cpu_info_from_cpuid
 
 #: Mapping from operating systems to chain of commands
 #: to obtain a dictionary of raw info on the current cpu
@@ -80,12 +81,7 @@ def proc_cpuinfo():
 @info_dict(operating_system="Windows")
 def proc_py_cpuinfo():
     """Returns a raw info dictionary by using py-cpuinfo"""
-    try:
-        import cpuinfo
-    except ImportError:
-        return {}
-
-    data = cpuinfo.get_cpu_info()
+    data = get_cpu_info_from_cpuid()
     return {
         "vendor_id": data["vendor_id_raw"],
         "flags": " ".join(data["flags"]),
