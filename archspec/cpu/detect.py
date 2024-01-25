@@ -13,7 +13,7 @@ from typing import Dict, List, Optional, Set, Tuple, Union
 
 from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture
 from .schema import TARGETS_JSON
-from .cpuid import get_cpu_info_from_cpuid
+from .cpu_info_from_cpuid import get_cpu_info_from_cpuid
 
 #: Mapping from operating systems to chain of commands
 #: to obtain a dictionary of raw info on the current cpu
