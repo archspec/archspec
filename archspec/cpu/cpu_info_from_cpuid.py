@@ -350,12 +350,10 @@ def get_cpu_info_from_cpuid():
     processor_brand = get_processor_brand(cpuid, max_extension_support)
 
     info = {
-        "vendor_id_raw": get_vendor_id(cpuid),
-        "brand_raw": processor_brand,
-        "stepping": info["stepping"],
+        "vendor_id": get_vendor_id(cpuid),
+        "model name": processor_brand,
         "model": info["model"],
-        "family": info["family"],
-        "processor_type": info["processor_type"],
-        "flags": get_flags(cpuid, max_extension_support),
+        "cpu family": info["family"],
+        "flags": " ".join(get_flags(cpuid, max_extension_support)),
     }
     return info

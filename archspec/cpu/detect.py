@@ -113,14 +113,7 @@ def proc_cpuinfo() -> Microarchitecture:
 @info_dict(operating_system="Windows")
 def proc_py_cpuinfo():
     """Returns a raw info dictionary by using py-cpuinfo"""
-    data = get_cpu_info_from_cpuid()
-    return {
-        "vendor_id": data["vendor_id_raw"],
-        "flags": " ".join(data["flags"]),
-        "model": data["model"],
-        "model name": data["brand_raw"],
-        "cpu family": data["family"],
-    }
+    return get_cpu_info_from_cpuid()
 
 
 def _check_output(args, env):
