@@ -13,7 +13,7 @@ import warnings
 
 from .microarchitecture import generic_microarchitecture, TARGETS
 from .schema import TARGETS_JSON
-from .cpuid import get_cpu_info_from_cpuid
+from .cpu_info_from_cpuid import get_cpu_info_from_cpuid
 
 #: Mapping from operating systems to chain of commands
 #: to obtain a dictionary of raw info on the current cpu
