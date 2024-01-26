@@ -36,8 +36,8 @@ def info_dict(operating_system):
         INFO_FACTORY[operating_system].append(factory)
 
         @functools.wraps(factory)
-        def _impl():
-            info = factory()
+        def _impl(native):
+            info = factory(native)
 
             # Check that info contains a few mandatory fields
             msg = 'field "{0}" is missing from raw info dictionary'
@@ -54,7 +54,7 @@ def info_dict(operating_system):
 
 
 @info_dict(operating_system="Linux")
-def proc_cpuinfo():
+def proc_cpuinfo(native):
     """Returns a raw info dictionary by parsing the first entry of
     ``/proc/cpuinfo``
     """
@@ -111,20 +111,20 @@ def _using_rossetta():
 
 
 @info_dict(operating_system="Darwin")
-def sysctl_info_dict():
+def sysctl_info_dict(native):
     """Returns a raw info dictionary parsing the output of sysctl."""
     child_environment = _ensure_bin_usrbin_in_path()
 
     def sysctl(*args):
         return _check_output(["sysctl"] + list(args), env=child_environment).strip()
 
-    def sysctl_x86_64(*args):
-        return _check_output(["arch", "-x86_64", "sysctl"] + list(args),
+    def sysctl_arch(arch, *args):
+        return _check_output(["arch", f"-{arch}", "sysctl"] + list(args),
                              env=child_environment).strip()
 
-    if _machine() == "x86_64":
+    if _machine() == "x86_64" and not (_using_rosetta() and native):
         if _using_rossetta():
-            flags = sysctl_x86_64("-n", "machdep.cpu.features").lower()
+            flags = sysctl_arch("x86_64", "-n", "machdep.cpu.features").lower()
             # Apple uses these values for the virtual machine in cpuid
             # assembly instruction
             info = {
@@ -147,7 +147,7 @@ def sysctl_info_dict():
             }
     else:
         model = "unknown"
-        model_str = sysctl("-n", "machdep.cpu.brand_string").lower()
+        model_str = sysctl_arch("arm64", "-n", "machdep.cpu.brand_string").lower()
         if "m2" in model_str:
             model = "m2"
         elif "m1" in model_str:
@@ -160,7 +160,7 @@ def sysctl_info_dict():
             "flags": [],
             "model": model,
             "CPU implementer": "Apple",
-            "model name": sysctl("-n", "machdep.cpu.brand_string"),
+            "model name": sysctl_arch("arm64", "-n", "machdep.cpu.brand_string"),
         }
     return info
 
@@ -207,7 +207,7 @@ def adjust_raw_vendor(info):
         info["CPU implementer"] = arm_vendors[arm_code]
 
 
-def raw_info_dictionary():
+def raw_info_dictionary(native):
     """Returns a dictionary with information on the cpu of the current host.
 
     This function calls all the viable factories one after the other until
@@ -217,7 +217,7 @@ def raw_info_dictionary():
     info = {}
     for factory in INFO_FACTORY[platform.system()]:
         try:
-            info = factory()
+            info = factory(native)
         except Exception as exc:
             warnings.warn(str(exc))
 
@@ -245,10 +245,18 @@ def compatible_microarchitectures(info):
     ]
 
 
-def host():
-    """Detects the host micro-architecture and returns it."""
+def host(native=True):
+    """Detects the host micro-architecture and returns it.
+
+    Args:
+        native (bool): whether to return the native CPU
+           architecture or the emulated architecture that the
+           python process runs on.
+           Note that on Linux, the native CPU architecture
+           is not detected and returns the emulated architecture.
+    """
     # Retrieve a dictionary with raw information on the host's cpu
-    info = raw_info_dictionary()
+    info = raw_info_dictionary(native=native)
 
     # Get a list of possible candidates for this micro-architecture
     candidates = compatible_microarchitectures(info)
