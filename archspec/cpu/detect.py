@@ -33,8 +33,6 @@ def info_dict(operating_system):
     """
 
     def decorator(factory):
-        INFO_FACTORY[operating_system].append(factory)
-
         @functools.wraps(factory)
         def _impl():
             info = factory()
@@ -44,9 +42,11 @@ def info_dict(operating_system):
             assert "vendor_id" in info, msg.format("vendor_id")
             assert "flags" in info, msg.format("flags")
             assert "model" in info, msg.format("model")
-            assert "model_name" in info, msg.format("model_name")
+            assert "model name" in info, msg.format("model name")
 
             return info
+
+        INFO_FACTORY[operating_system].append(_impl)
 
         return _impl
 
