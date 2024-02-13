@@ -4,7 +4,6 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """Detection of CPU microarchitectures"""
 import collections
-import functools
 import os
 import platform
 import re
@@ -34,21 +33,7 @@ def info_dict(operating_system):
 
     def decorator(factory):
         INFO_FACTORY[operating_system].append(factory)
-
-        @functools.wraps(factory)
-        def _impl(use_python_arch):
-            info = factory(use_python_arch)
-
-            # Check that info contains a few mandatory fields
-            msg = 'field "{0}" is missing from raw info dictionary'
-            assert "vendor_id" in info, msg.format("vendor_id")
-            assert "flags" in info, msg.format("flags")
-            assert "model" in info, msg.format("model")
-            assert "model_name" in info, msg.format("model_name")
-
-            return info
-
-        return _impl
+        return factory
 
     return decorator
 

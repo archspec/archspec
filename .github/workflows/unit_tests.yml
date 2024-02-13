@@ -23,7 +23,7 @@ jobs:
       with:
         submodules: true
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -36,7 +36,7 @@ jobs:
         tox
         coverage xml
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
@@ -47,7 +47,7 @@ jobs:
       with:
         submodules: true
     - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
         cache: pip
@@ -59,7 +59,7 @@ jobs:
       run: |
         pytest --cov=archspec
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@v3
+      uses: codecov/codecov-action@v4
       with:
         file: ./coverage.xml
         flags: unittests
