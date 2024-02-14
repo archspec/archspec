@@ -138,6 +138,28 @@ def supported_target(request):
     return request.param
 
 
+@pytest.fixture()
+def extension_file(tmp_path):
+    extension_file = tmp_path / "microarchitectures.json"
+    extension_file.write_text(
+        """
+{
+  "microarchitectures": {
+    "pentium2.5": {
+      "from": ["pentium2"],
+      "vendor": "BogusIntel",
+      "features": [
+        "mmx",
+        "mehmehx"
+      ]
+    }
+  }
+}
+"""
+    )
+    return extension_file
+
+
 def test_target_detection(expected_target):
     detected_target = archspec.cpu.host()
     assert detected_target == expected_target, f"{detected_target} == {expected_target}"
@@ -415,7 +437,7 @@ def test_generic_property(target, expected):
 
 
 def test_versions_are_ranges(supported_target):
-    """Tests that all the copmiler versions in the JSON file are ranges, containing an
+    """Tests that all the compiler versions in the JSON file are ranges, containing an
     explicit ':' character.
     """
     target_under_test = archspec.cpu.TARGETS[supported_target]
@@ -428,3 +450,23 @@ def test_round_trip_dict():
     for name in archspec.cpu.TARGETS:
         uarch_copy = Microarchitecture.from_dict(archspec.cpu.TARGETS[name].to_dict())
         assert uarch_copy == archspec.cpu.TARGETS[name]
+
+
+def test_microarchitectures_extension(extension_file, monkeypatch, reset_global_state):
+    """Tests that we can update the JSON file using a user defined extension"""
+    monkeypatch.setenv("ARCHSPEC_EXTENSION_CPU_DIR", str(extension_file.parent))
+    reset_global_state()
+    assert "pentium2.5" in archspec.cpu.TARGETS
+    assert "mehmehx" in archspec.cpu.TARGETS["pentium2.5"]
+    assert archspec.cpu.TARGETS["pentium2.5"].vendor == "BogusIntel"
+    assert archspec.cpu.TARGETS["pentium2"] < archspec.cpu.TARGETS["pentium2.5"]
+
+
+def test_only_one_extension_file(extension_file, monkeypatch, reset_global_state):
+    """Tests that we can supply only one extension file in a custom directory, and that reading
+    any other JSON file will not give errors.
+    """
+    monkeypatch.setenv("ARCHSPEC_EXTENSION_CPU_DIR", str(extension_file.parent))
+    reset_global_state()
+    assert "pentium2.5" in archspec.cpu.TARGETS
+    assert "flags" in archspec.cpu.schema.CPUID_JSON
