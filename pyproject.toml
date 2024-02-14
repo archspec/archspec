@@ -23,6 +23,13 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: Unix"
 ]
+include = [
+    { path = "tests", format = "sdist"}
+]
+exclude = [
+    "archspec/json/.git" ,
+    "archspec/json/.github" ,
+]
 
 [tool.poetry.dependencies]
 python = "3.6.15 || ^3.7"
