@@ -82,7 +82,7 @@ def _machine():
 
 
 def _using_rossetta():
-    """ Return whether we are using x86_64 emulation on Darwin"""
+    """Return whether we are using x86_64 emulation on Darwin"""
     operating_system = platform.system()
 
     if operating_system != "Darwin":
@@ -104,8 +104,9 @@ def sysctl_info_dict(use_python_arch):
         return _check_output(["sysctl"] + list(args), env=child_environment).strip()
 
     def sysctl_arch(arch, *args):
-        return _check_output(["arch", f"-{arch}", "sysctl"] + list(args),
-                             env=child_environment).strip()
+        return _check_output(
+            ["arch", f"-{arch}", "sysctl"] + list(args), env=child_environment
+        ).strip()
 
     if _machine() == "x86_64" and (not _using_rosetta() or use_python_arch):
         if _using_rossetta():
