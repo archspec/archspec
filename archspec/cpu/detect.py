@@ -69,7 +69,7 @@ def _check_output(args, env):
 
 
 def _machine():
-    """ "Return the machine architecture we are on"""
+    """Return the machine architecture we are on"""
     operating_system = platform.system()
 
     # If we are not on Darwin, trust what Python tells us
@@ -208,9 +208,28 @@ def compatible_microarchitectures(info):
     # If a tester is not registered, be conservative and assume no known
     # target is compatible with the host
     tester = COMPATIBILITY_CHECKS.get(architecture_family, lambda x, y: False)
-    return [x for x in TARGETS.values() if tester(info, x)] or [
+    candidate_targets = _candidate_targets(info)
+    return [x for x in candidate_targets if tester(info, x)] or [
         generic_microarchitecture(architecture_family)
     ]
+
+
+def _candidate_targets(info):
+    if "cpu family" not in info or "model" not in info:
+        return TARGETS.values()
+
+    family = _machine()
+    if family not in TARGETS_JSON["models"]:
+        return TARGETS.values()
+
+    detected = info["cpu family"], info["model"]
+    for item in TARGETS_JSON["models"][family]:
+        current = item["family"], item["model"]
+        if detected == current:
+            key = item["uarch"]
+            return TARGETS[key].ancestors
+
+    return TARGETS.values()
 
 
 def host():
