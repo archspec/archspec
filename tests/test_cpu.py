@@ -3,12 +3,11 @@
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-import pytest
-
 import contextlib
 import os.path
 
 import jsonschema
+import pytest
 
 import archspec.cpu
 import archspec.cpu.alias
@@ -71,9 +70,7 @@ def expected_target(request, monkeypatch):
     if platform != "darwin":
         architecture_family = archspec.cpu.TARGETS[target].family
 
-    monkeypatch.setattr(
-        cpu.detect.platform, "machine", lambda: str(architecture_family)
-    )
+    monkeypatch.setattr(cpu.detect.platform, "machine", lambda: str(architecture_family))
 
     test_dir = os.path.dirname(__file__)
     target_dir = os.path.join(test_dir, "..", "archspec", "json", "tests", "targets")
