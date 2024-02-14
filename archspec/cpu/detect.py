@@ -113,6 +113,7 @@ def sysctl_info_dict():
             "model": sysctl("-n", "machdep.cpu.model"),
             "model name": sysctl("-n", "machdep.cpu.brand_string"),
         }
+        canonicalize_x86_64_darwin_flags(info)
     else:
         model = "unknown"
         model_str = sysctl("-n", "machdep.cpu.brand_string").lower()
@@ -145,7 +146,7 @@ def _ensure_bin_usrbin_in_path():
     return child_environment
 
 
-def adjust_raw_flags(info):
+def canonicalize_x86_64_darwin_flags(info):
     """Adjust the flags detected on the system to homogenize
     slightly different representations.
     """
@@ -190,7 +191,6 @@ def raw_info_dictionary():
             warnings.warn(str(exc))
 
         if info:
-            adjust_raw_flags(info)
             adjust_raw_vendor(info)
             break
 
