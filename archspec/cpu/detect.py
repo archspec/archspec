@@ -10,7 +10,7 @@ import re
 import subprocess
 import warnings
 
-from .microarchitecture import generic_microarchitecture, TARGETS
+from .microarchitecture import TARGETS, generic_microarchitecture
 from .schema import TARGETS_JSON
 
 #: Mapping from operating systems to chain of commands

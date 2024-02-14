@@ -13,6 +13,7 @@ import warnings
 import archspec
 import archspec.cpu.alias
 import archspec.cpu.schema
+
 from .alias import FEATURE_ALIASES
 from .schema import LazyDictionary
 

@@ -3,12 +3,11 @@
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-import pytest
-
 import contextlib
 import os.path
 
 import jsonschema
+import pytest
 
 import archspec.cpu
 import archspec.cpu.alias
