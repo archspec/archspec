@@ -272,9 +272,7 @@ class Microarchitecture:
                 flags = flags_fmt.format(**compiler_entry)
                 return flags
 
-        msg = (
-            "cannot produce optimized binary for micro-architecture '{0}' with {1}@{2}"
-        )
+        msg = "cannot produce optimized binary for micro-architecture '{0}' with {1}@{2}"
         if compiler_info:
             versions = [x["versions"] for x in compiler_info]
             msg += f' [supported compiler versions are {", ".join(versions)}]'
@@ -290,9 +288,7 @@ def generic_microarchitecture(name):
     Args:
         name (str): name of the micro-architecture
     """
-    return Microarchitecture(
-        name, parents=[], vendor="generic", features=[], compilers={}
-    )
+    return Microarchitecture(name, parents=[], vendor="generic", features=[], compilers={})
 
 
 def version_components(version):
@@ -346,9 +342,7 @@ def _known_microarchitectures():
         compilers = values.get("compilers", {})
         generation = values.get("generation", 0)
 
-        targets[name] = Microarchitecture(
-            name, parents, vendor, features, compilers, generation
-        )
+        targets[name] = Microarchitecture(name, parents, vendor, features, compilers, generation)
 
     known_targets = {}
     data = archspec.cpu.schema.TARGETS_JSON["microarchitectures"]

@@ -51,6 +51,10 @@ isort = { version = "^5", python = "^3.8" }
 [tool.isort]
 profile = "black"
 
+[tool.black]
+line-length = 99
+target-version = ['py36', 'py37', 'py38', 'py39', 'py310', 'py311', 'py312']
+
 [tool.poetry.scripts]
 archspec = 'archspec.cli:main'
 
