@@ -7,13 +7,14 @@ import collections
 import os
 import platform
 import re
+import struct
 import subprocess
 import warnings
 from typing import Dict, List, Optional, Set, Tuple, Union
 
+from ..vendor.cpuid.cpuid import CPUID
 from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture
-from .schema import TARGETS_JSON
-from .cpu_info_from_cpuid import get_cpu_info_from_cpuid
+from .schema import CPUID_JSON, TARGETS_JSON
 
 #: Mapping from operating systems to chain of commands
 #: to obtain a dictionary of raw info on the current cpu
@@ -110,15 +111,58 @@ def proc_cpuinfo() -> Microarchitecture:
     return generic_microarchitecture(architecture)
 
 
+class CpuidInfoCollector:
+    """Collects the information we need on the host CPU from cpuid"""
+
+    # pylint: disable=too-few-public-methods
+    def __init__(self):
+        self.cpuid = CPUID()
+
+        registers = self.cpuid(**CPUID_JSON["vendor"]["input"], unpack=False)
+        self.highest_basic_support = registers.eax
+        self.vendor = struct.pack("III", registers.ebx, registers.edx, registers.ecx).decode(
+            "utf-8"
+        )
+
+        registers = self.cpuid(**CPUID_JSON["highest_extension_support"]["input"], unpack=False)
+        self.highest_extension_support = registers.eax
+
+        self.features = self._features()
+
+    def _features(self):
+        result = set()
+
+        def check_features(data):
+            registers = self.cpuid(**data["input"], unpack=False)
+            for feature_check in data["bits"]:
+                current = getattr(registers, feature_check["register"])
+                if self._is_bit_set(current, feature_check["bit"]):
+                    result.add(feature_check["name"])
+
+        for call_data in CPUID_JSON["flags"]:
+            if call_data["input"]["eax"] > self.highest_basic_support:
+                continue
+            check_features(call_data)
+
+        for call_data in CPUID_JSON["extension-flags"]:
+            if call_data["input"]["eax"] > self.highest_extension_support:
+                continue
+            check_features(call_data)
+
+        return result
+
+    def _is_bit_set(self, register: int, bit: int) -> bool:
+        mask = 1 << bit
+        return register & mask > 0
+
+
 @detection(operating_system="Windows")
 def cpuid_info():
     """Returns a partial Microarchitecture, obtained from running the cpuid instruction"""
     architecture = _machine()
     if architecture == X86_64:
-        data = get_cpu_info_from_cpuid()
-        return partial_uarch(
-            vendor=data.get("vendor_id", "generic"), features=_feature_set(data, key="flags")
-        )
+        data = CpuidInfoCollector()
+        return partial_uarch(vendor=data.vendor, features=data.features)
 
     return generic_microarchitecture(architecture)
 
