@@ -22,6 +22,13 @@ INFO_FACTORY = collections.defaultdict(list)
 #: functions checking the compatibility of the host with a given target
 COMPATIBILITY_CHECKS = {}
 
+# Constants for commonly used architectures
+X86_64 = "x86_64"
+AARCH64 = "aarch64"
+PPC64LE = "ppc64le"
+PPC64 = "ppc64"
+RISCV64 = "riscv64"
+
 
 def detection(operating_system: str):
     """Decorator to mark functions that are meant to return partial information on the current cpu.
@@ -72,18 +79,18 @@ def proc_cpuinfo() -> Microarchitecture:
             data[key.strip()] = value.strip()
 
     architecture = _machine()
-    if architecture == "x86_64":
+    if architecture == X86_64:
         return partial_uarch(
             vendor=data.get("vendor_id", "generic"), features=_feature_set(data, key="flags")
         )
 
-    if architecture == "aarch64":
+    if architecture == AARCH64:
         return partial_uarch(
             vendor=_canonicalize_aarch64_vendor(data),
             features=_feature_set(data, key="Features"),
         )
 
-    if architecture in ("ppc64le", "ppc64"):
+    if architecture in (PPC64LE, PPC64):
         generation_match = re.search(r"POWER(\d+)", data.get("cpu", ""))
         try:
             generation = int(generation_match.group(1))
@@ -94,11 +101,10 @@ def proc_cpuinfo() -> Microarchitecture:
             generation = 0
         return partial_uarch(generation=generation)
 
-    if architecture == "riscv64":
+    if architecture == RISCV64:
         if data.get("uarch") == "sifive,u74-mc":
             data["uarch"] = "u74mc"
-
-        return partial_uarch(name=data.get("uarch", "riscv64"))
+        return partial_uarch(name=data.get("uarch", RISCV64))
 
     return generic_microarchitecture(architecture)
 
@@ -129,9 +135,9 @@ def _machine():
     if "Apple" in output:
         # Note that a native Python interpreter on Apple M1 would return
         # "arm64" instead of "aarch64". Here we normalize to the latter.
-        return "aarch64"
+        return AARCH64
 
-    return "x86_64"
+    return X86_64
 
 
 @detection(operating_system="Darwin")
@@ -142,7 +148,7 @@ def sysctl_info() -> Microarchitecture:
     def sysctl(*args: str) -> str:
         return _check_output(["sysctl"] + list(args), env=child_environment).strip()
 
-    if _machine() == "x86_64":
+    if _machine() == X86_64:
         features = (
             f'{sysctl("-n", "machdep.cpu.features").lower()} '
             f'{sysctl("-n", "machdep.cpu.leaf7_features").lower()}'
@@ -280,25 +286,23 @@ def compatibility_check(architecture_family: Union[str, Tuple[str, ...]]):
     return decorator
 
 
-@compatibility_check(architecture_family=("ppc64le", "ppc64"))
+@compatibility_check(architecture_family=(PPC64LE, PPC64))
 def compatibility_check_for_power(info, target):
     """Compatibility check for PPC64 and PPC64LE architectures."""
-    basename = _machine()
     # We can use a target if it descends from our machine type and our
     # generation (9 for POWER9, etc) is at least its generation.
-    arch_root = TARGETS[basename]
+    arch_root = TARGETS[_machine()]
     return (
         target == arch_root or arch_root in target.ancestors
     ) and target.generation <= info.generation
 
 
-@compatibility_check(architecture_family="x86_64")
+@compatibility_check(architecture_family=X86_64)
 def compatibility_check_for_x86_64(info, target):
     """Compatibility check for x86_64 architectures."""
-    basename = "x86_64"
     # We can use a target if it descends from our machine type, is from our
     # vendor, and we have all of its features
-    arch_root = TARGETS[basename]
+    arch_root = TARGETS[X86_64]
     return (
         (target == arch_root or arch_root in target.ancestors)
         and target.vendor in (info.vendor, "generic")
@@ -306,17 +310,15 @@ def compatibility_check_for_x86_64(info, target):
     )
 
 
-@compatibility_check(architecture_family="aarch64")
+@compatibility_check(architecture_family=AARCH64)
 def compatibility_check_for_aarch64(info, target):
     """Compatibility check for AARCH64 architectures."""
-    basename = "aarch64"
-
-    # At the moment it's not clear how to detect compatibility with
+    # At the moment, it's not clear how to detect compatibility with
     # a specific version of the architecture
-    if target.vendor == "generic" and target.name != "aarch64":
+    if target.vendor == "generic" and target.name != AARCH64:
         return False
 
-    arch_root = TARGETS[basename]
+    arch_root = TARGETS[AARCH64]
     arch_root_and_vendor = arch_root == target.family and target.vendor in (
         info.vendor,
         "generic",
@@ -331,11 +333,10 @@ def compatibility_check_for_aarch64(info, target):
     return arch_root_and_vendor and target.features.issubset(info.features)
 
 
-@compatibility_check(architecture_family="riscv64")
+@compatibility_check(architecture_family=RISCV64)
 def compatibility_check_for_riscv64(info, target):
     """Compatibility check for riscv64 architectures."""
-    basename = "riscv64"
-    arch_root = TARGETS[basename]
+    arch_root = TARGETS[RISCV64]
     return (target == arch_root or arch_root in target.ancestors) and (
         target.name == info.name or target.vendor == "generic"
     )
