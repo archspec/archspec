@@ -39,7 +39,7 @@ def info_dict(operating_system):
 
 
 @info_dict(operating_system="Linux")
-def proc_cpuinfo():
+def proc_cpuinfo(use_python_arch):
     """Returns a raw info dictionary by parsing the first entry of
     ``/proc/cpuinfo``
     """
@@ -71,51 +71,69 @@ def _check_output(args, env):
 def _machine():
     """ "Return the machine architecture we are on"""
     operating_system = platform.system()
+    machine = platform.machine()
 
-    # If we are not on Darwin, trust what Python tells us
+    if machine == "arm64":
+        # Note that a use_python_arch Python interpreter on Apple M1 would return
+        # "arm64" instead of "aarch64". Here we normalize to the latter.
+        return "aarch64"
+
+    return machine
+
+
+def _using_rossetta():
+    """Return whether we are using x86_64 emulation on Darwin"""
+    operating_system = platform.system()
+
     if operating_system != "Darwin":
-        return platform.machine()
+        return False
 
-    # On Darwin it might happen that we are on M1, but using an interpreter
-    # built for x86_64. In that case "platform.machine() == 'x86_64'", so we
-    # need to fix that.
-    #
-    # See: https://bugs.python.org/issue42704
     output = _check_output(
         ["sysctl", "-n", "machdep.cpu.brand_string"], env=_ensure_bin_usrbin_in_path()
     ).strip()
 
-    if "Apple" in output:
-        # Note that a native Python interpreter on Apple M1 would return
-        # "arm64" instead of "aarch64". Here we normalize to the latter.
-        return "aarch64"
-
-    return "x86_64"
+    return "Apple" in output
 
 
 @info_dict(operating_system="Darwin")
-def sysctl_info_dict():
+def sysctl_info_dict(use_python_arch):
     """Returns a raw info dictionary parsing the output of sysctl."""
     child_environment = _ensure_bin_usrbin_in_path()
 
     def sysctl(*args):
         return _check_output(["sysctl"] + list(args), env=child_environment).strip()
 
-    if _machine() == "x86_64":
-        flags = (
-            sysctl("-n", "machdep.cpu.features").lower()
-            + " "
-            + sysctl("-n", "machdep.cpu.leaf7_features").lower()
-        )
-        info = {
-            "vendor_id": sysctl("-n", "machdep.cpu.vendor"),
-            "flags": flags,
-            "model": sysctl("-n", "machdep.cpu.model"),
-            "model name": sysctl("-n", "machdep.cpu.brand_string"),
-        }
+    def sysctl_arch(arch, *args):
+        return _check_output(
+            ["arch", f"-{arch}", "sysctl"] + list(args), env=child_environment
+        ).strip()
+
+    if _machine() == "x86_64" and (not _using_rosetta() or use_python_arch):
+        if _using_rossetta():
+            flags = sysctl_arch("x86_64", "-n", "machdep.cpu.features").lower()
+            # Apple uses these values for the virtual machine in cpuid
+            # assembly instruction
+            info = {
+                "vendor_id": "GenuineIntel",
+                "flags": flags,
+                "model": "44",
+                "model name": "VirtualApple @ 2.50GHz",
+            }
+        else:
+            flags = (
+                sysctl("-n", "machdep.cpu.features").lower()
+                + " "
+                + sysctl("-n", "machdep.cpu.leaf7_features").lower()
+            )
+            info = {
+                "vendor_id": sysctl("-n", "machdep.cpu.vendor"),
+                "flags": flags,
+                "model": sysctl("-n", "machdep.cpu.model"),
+                "model name": sysctl("-n", "machdep.cpu.brand_string"),
+            }
     else:
         model = "unknown"
-        model_str = sysctl("-n", "machdep.cpu.brand_string").lower()
+        model_str = sysctl_arch("arm64", "-n", "machdep.cpu.brand_string").lower()
         if "m2" in model_str:
             model = "m2"
         elif "m1" in model_str:
@@ -128,7 +146,7 @@ def sysctl_info_dict():
             "flags": [],
             "model": model,
             "CPU implementer": "Apple",
-            "model name": sysctl("-n", "machdep.cpu.brand_string"),
+            "model name": sysctl_arch("arm64", "-n", "machdep.cpu.brand_string"),
         }
     return info
 
@@ -175,7 +193,7 @@ def adjust_raw_vendor(info):
         info["CPU implementer"] = arm_vendors[arm_code]
 
 
-def raw_info_dictionary():
+def raw_info_dictionary(use_python_arch):
     """Returns a dictionary with information on the cpu of the current host.
 
     This function calls all the viable factories one after the other until
@@ -185,7 +203,7 @@ def raw_info_dictionary():
     info = {}
     for factory in INFO_FACTORY[platform.system()]:
         try:
-            info = factory()
+            info = factory(use_python_arch)
         except Exception as exc:
             warnings.warn(str(exc))
 
@@ -213,10 +231,18 @@ def compatible_microarchitectures(info):
     ]
 
 
-def host():
-    """Detects the host micro-architecture and returns it."""
+def host(use_python_arch=False):
+    """Detects the host micro-architecture and returns it.
+
+    Args:
+        use_python_arch (bool): whether to use the architecture
+           that the python process runs on (possibly emulated)
+           or the native CPU architecture.
+           Note that on Linux, the native CPU architecture
+           is not detected and returns the emulated architecture.
+    """
     # Retrieve a dictionary with raw information on the host's cpu
-    info = raw_info_dictionary()
+    info = raw_info_dictionary(use_python_arch=use_python_arch)
 
     # Get a list of possible candidates for this micro-architecture
     candidates = compatible_microarchitectures(info)
