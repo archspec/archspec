@@ -9,9 +9,9 @@ import platform
 import re
 import subprocess
 import warnings
-from typing import Optional, Set, Dict, List, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple, Union
 
-from .microarchitecture import TARGETS, generic_microarchitecture, Microarchitecture
+from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture
 from .schema import TARGETS_JSON
 
 #: Mapping from operating systems to chain of commands
