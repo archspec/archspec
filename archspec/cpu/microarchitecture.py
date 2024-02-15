@@ -48,7 +48,7 @@ class Microarchitecture:
             which has "broadwell" as a parent, supports running binaries
             optimized for "broadwell".
         vendor (str): vendor of the micro-architecture
-        features (list of str): supported CPU flags. Note that the semantic
+        features (set of str): supported CPU flags. Note that the semantic
             of the flags in this field might vary among architectures, if
             at all present. For instance x86_64 processors will list all
             the flags supported by a given CPU while Arm processors will
