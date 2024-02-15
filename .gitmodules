@@ -1,3 +1,6 @@
 [submodule "archspec/json"]
 	path = archspec/json
 	url = https://github.com/archspec/archspec-json.git
+[submodule "archspec/vendor/cpuid"]
+	path = archspec/vendor/cpuid
+	url = https://github.com/archspec/cpuid.git

@@ -110,10 +110,17 @@ def proc_cpuinfo() -> Microarchitecture:
     return generic_microarchitecture(architecture)
 
 
-@info_dict(operating_system="Windows")
-def proc_py_cpuinfo():
-    """Returns a raw info dictionary by using py-cpuinfo"""
-    return get_cpu_info_from_cpuid()
+@detection(operating_system="Windows")
+def cpuid_info():
+    """Returns a partial Microarchitecture, obtained from running the cpuid instruction"""
+    architecture = _machine()
+    if architecture == X86_64:
+        data = get_cpu_info_from_cpuid()
+        return partial_uarch(
+            vendor=data.get("vendor_id", "generic"), features=_feature_set(data, key="flags")
+        )
+
+    return generic_microarchitecture(architecture)
 
 
 def _check_output(args, env):

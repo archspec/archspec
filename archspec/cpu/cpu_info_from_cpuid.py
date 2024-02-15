@@ -33,7 +33,8 @@ import struct
 import json
 import os
 
-from .cpuid import CPUID
+from ..vendor.cpuid import cpuid as cpuid_mod
+
 
 def _is_x86():
     arch_string_raw = platform.machine().lower()
@@ -141,7 +142,7 @@ def get_cpu_info_from_cpuid():
     if not _is_x86():
         return {}
 
-    cpuid = CPUID()
+    cpuid = cpuid_mod.CPUID()
 
     # Get the cpu info from the CPUID register
     max_extension_support = get_max_extension_support(cpuid)
