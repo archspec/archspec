@@ -4,7 +4,9 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 import contextlib
+import csv
 import os.path
+from typing import NamedTuple
 
 import jsonschema
 import pytest
@@ -56,6 +58,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-rhel8-power9",
         "linux-unknown-power10",
         "linux-ubuntu22.04-neoverse_v2",
+        "windows-cpuid-broadwell",
     ]
 )
 def expected_target(request, monkeypatch):
@@ -65,10 +68,9 @@ def expected_target(request, monkeypatch):
     # This is the default to use for tests on Darwin, since it will match
     # Intel based MacBook, and will be the worst case scenario for Apple M1
     # (i.e. Python for x86_64 running on top of Rosetta)
-    architecture_family = "x86_64"
-    # If the platform is not darwin, get the correct architecture
-    if platform != "darwin":
-        architecture_family = archspec.cpu.TARGETS[target].family
+    architecture_family = "x86_64" if platform == "darwin" else archspec.cpu.TARGETS[target].family
+    if platform == "windows":
+        architecture_family = "AMD64" if architecture_family == "x86_64" else "ARM64"
 
     monkeypatch.setattr(cpu.detect.platform, "machine", lambda: str(architecture_family))
 
@@ -102,6 +104,31 @@ def expected_target(request, monkeypatch):
 
         monkeypatch.setattr(cpu.detect, "_check_output", _check_output)
 
+    elif platform == "windows":
+        monkeypatch.setattr(cpu.detect.platform, "system", lambda: "Windows")
+        filename = os.path.join(target_dir, request.param)
+
+        class MockRegisters(NamedTuple):
+            eax: int
+            ebx: int
+            ecx: int
+            edx: int
+
+        class MockCPUID:
+            def __init__(self):
+                self.data = {}
+                with open(filename) as f:
+                    reader = csv.reader(f)
+                    for row in reader:
+                        key = int(row[0]), int(row[1])
+                        values = tuple(int(x) for x in row[2:])
+                        self.data[key] = MockRegisters(*values)
+
+            def registers_for(self, eax, ecx):
+                return self.data.get((eax, ecx), MockRegisters(0, 0, 0, 0))
+
+        monkeypatch.setattr(cpu.detect, "CPUID", MockCPUID)
+
     return archspec.cpu.TARGETS[target]
 
 
@@ -112,7 +139,7 @@ def supported_target(request):
 
 def test_target_detection(expected_target):
     detected_target = archspec.cpu.host()
-    assert detected_target == expected_target
+    assert detected_target == expected_target, f"{detected_target} == {expected_target}"
 
 
 def test_no_dashes_in_target_names(supported_target):
