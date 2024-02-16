@@ -118,13 +118,13 @@ class CpuidInfoCollector:
     def __init__(self):
         self.cpuid = CPUID()
 
-        registers = self.cpuid(**CPUID_JSON["vendor"]["input"], unpack=False)
+        registers = self.cpuid.registers_for(**CPUID_JSON["vendor"]["input"])
         self.highest_basic_support = registers.eax
         self.vendor = struct.pack("III", registers.ebx, registers.edx, registers.ecx).decode(
             "utf-8"
         )
 
-        registers = self.cpuid(**CPUID_JSON["highest_extension_support"]["input"], unpack=False)
+        registers = self.cpuid.registers_for(**CPUID_JSON["highest_extension_support"]["input"])
         self.highest_extension_support = registers.eax
 
         self.features = self._features()
@@ -133,7 +133,7 @@ class CpuidInfoCollector:
         result = set()
 
         def check_features(data):
-            registers = self.cpuid(**data["input"], unpack=False)
+            registers = self.cpuid.registers_for(**data["input"])
             for feature_check in data["bits"]:
                 current = getattr(registers, feature_check["register"])
                 if self._is_bit_set(current, feature_check["bit"]):
