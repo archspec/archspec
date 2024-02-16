@@ -233,12 +233,14 @@ def test_generic_microarchitecture():
     assert generic_march.vendor == "generic"
 
 
-def test_target_json_schema():
-    # The file microarchitectures.json contains static data i.e. data that is
-    # not meant to be modified by users directly. It is thus sufficient to
-    # validate it only once during unit tests.
-    json_data = archspec.cpu.schema.TARGETS_JSON.data
-    schema = archspec.cpu.schema.SCHEMA.data
+@pytest.mark.parametrize(
+    "json_data,schema",
+    [
+        (archspec.cpu.schema.TARGETS_JSON.data, archspec.cpu.schema.TARGETS_JSON_SCHEMA.data),
+        (archspec.cpu.schema.CPUID_JSON.data, archspec.cpu.schema.CPUID_JSON_SCHEMA.data),
+    ],
+)
+def test_validate_json_files(json_data, schema):
     jsonschema.validate(json_data, schema)
 
 
@@ -361,7 +363,7 @@ def test_version_components(version, expected_number, expected_suffix):
 
 
 def test_all_alias_predicates_are_implemented():
-    schema = archspec.cpu.schema.SCHEMA
+    schema = archspec.cpu.schema.TARGETS_JSON_SCHEMA
     fa_schema = schema["properties"]["feature_aliases"]
     aliases_in_schema = set(fa_schema["patternProperties"]["([\\w]*)"]["properties"])
     aliases_implemented = set(archspec.cpu.alias._FEATURE_ALIAS_PREDICATE)
