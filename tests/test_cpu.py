@@ -59,6 +59,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-unknown-power10",
         "linux-ubuntu22.04-neoverse_v2",
         "windows-cpuid-broadwell",
+        "windows-cpuid-icelake",
     ]
 )
 def expected_target(request, monkeypatch):
