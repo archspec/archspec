@@ -63,4 +63,10 @@ def _load_json_file(json_file):
 TARGETS_JSON = LazyDictionary(_load_json_file("microarchitectures.json"))
 
 #: JSON schema for microarchitectures.json, loaded on first access
-SCHEMA = LazyDictionary(_load_json_file("microarchitectures_schema.json"))
+TARGETS_JSON_SCHEMA = LazyDictionary(_load_json_file("microarchitectures_schema.json"))
+
+#: Information on how to call 'cpuid' to get information on the HOST CPU
+CPUID_JSON = LazyDictionary(_load_json_file("cpuid.json"))
+
+#: JSON schema for cpuid.json, loaded on first access
+CPUID_JSON_SCHEMA = LazyDictionary(_load_json_file("cpuid_schema.json"))

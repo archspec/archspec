@@ -7,12 +7,14 @@ import collections
 import os
 import platform
 import re
+import struct
 import subprocess
 import warnings
 from typing import Dict, List, Optional, Set, Tuple, Union
 
+from ..vendor.cpuid.cpuid import CPUID
 from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture
-from .schema import TARGETS_JSON
+from .schema import CPUID_JSON, TARGETS_JSON
 
 #: Mapping from operating systems to chain of commands
 #: to obtain a dictionary of raw info on the current cpu
@@ -109,19 +111,86 @@ def proc_cpuinfo() -> Microarchitecture:
     return generic_microarchitecture(architecture)
 
 
+class CpuidInfoCollector:
+    """Collects the information we need on the host CPU from cpuid"""
+
+    # pylint: disable=too-few-public-methods
+    def __init__(self):
+        self.cpuid = CPUID()
+
+        registers = self.cpuid.registers_for(**CPUID_JSON["vendor"]["input"])
+        self.highest_basic_support = registers.eax
+        self.vendor = struct.pack("III", registers.ebx, registers.edx, registers.ecx).decode(
+            "utf-8"
+        )
+
+        registers = self.cpuid.registers_for(**CPUID_JSON["highest_extension_support"]["input"])
+        self.highest_extension_support = registers.eax
+
+        self.features = self._features()
+
+    def _features(self):
+        result = set()
+
+        def check_features(data):
+            registers = self.cpuid.registers_for(**data["input"])
+            for feature_check in data["bits"]:
+                current = getattr(registers, feature_check["register"])
+                if self._is_bit_set(current, feature_check["bit"]):
+                    result.add(feature_check["name"])
+
+        for call_data in CPUID_JSON["flags"]:
+            if call_data["input"]["eax"] > self.highest_basic_support:
+                continue
+            check_features(call_data)
+
+        for call_data in CPUID_JSON["extension-flags"]:
+            if call_data["input"]["eax"] > self.highest_extension_support:
+                continue
+            check_features(call_data)
+
+        return result
+
+    def _is_bit_set(self, register: int, bit: int) -> bool:
+        mask = 1 << bit
+        return register & mask > 0
+
+
+@detection(operating_system="Windows")
+def cpuid_info():
+    """Returns a partial Microarchitecture, obtained from running the cpuid instruction"""
+    architecture = _machine()
+    if architecture == X86_64:
+        data = CpuidInfoCollector()
+        return partial_uarch(vendor=data.vendor, features=data.features)
+
+    return generic_microarchitecture(architecture)
+
+
 def _check_output(args, env):
     with subprocess.Popen(args, stdout=subprocess.PIPE, env=env) as proc:
         output = proc.communicate()[0]
     return str(output.decode("utf-8"))
 
 
+WINDOWS_MAPPING = {
+    "AMD64": "x86_64",
+    "ARM64": "aarch64",
+}
+
+
 def _machine():
     """Return the machine architecture we are on"""
     operating_system = platform.system()
 
-    # If we are not on Darwin, trust what Python tells us
-    if operating_system != "Darwin":
+    # If we are not on Darwin or Windows, trust what Python tells us
+    if operating_system not in ("Darwin", "Windows"):
         return platform.machine()
+
+    # Normalize windows specific names
+    if operating_system == "Windows":
+        platform_machine = platform.machine()
+        return WINDOWS_MAPPING.get(platform_machine, platform_machine)
 
     # On Darwin it might happen that we are on M1, but using an interpreter
     # built for x86_64. In that case "platform.machine() == 'x86_64'", so we
