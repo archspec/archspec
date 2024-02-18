@@ -422,3 +422,9 @@ def test_versions_are_ranges(supported_target):
     for compiler_name, entries in target_under_test.compilers.items():
         for compiler_info in entries:
             assert ":" in compiler_info["versions"]
+
+
+def test_round_trip_dict():
+    for name in archspec.cpu.TARGETS:
+        uarch_copy = Microarchitecture.from_dict(archspec.cpu.TARGETS[name].to_dict())
+        assert uarch_copy == archspec.cpu.TARGETS[name]
