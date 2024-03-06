@@ -208,6 +208,8 @@ class Microarchitecture:
         """Returns a string containing the optimization flags that needs
         to be used to produce code optimized for this micro-architecture.
 
+        The version is expected to be a string of dot separated digits.
+
         If there is no information on the compiler passed as argument the
         function returns an empty string. If it is known that the compiler
         version we want to use does not support this architecture the function
@@ -216,6 +218,11 @@ class Microarchitecture:
         Args:
             compiler (str): name of the compiler to be used
             version (str): version of the compiler to be used
+
+        Raises:
+            UnsupportedMicroarchitecture: if the requested compiler does not support
+                this micro-architecture.
+            ValueError: if the version doesn't match the expected format
         """
         # If we don't have information on compiler at all return an empty string
         if compiler not in self.family.compilers:
@@ -231,6 +238,11 @@ class Microarchitecture:
             )
             msg = msg.format(compiler, best_target, best_target.family)
             raise UnsupportedMicroarchitecture(msg)
+
+        # Check that the version matches the expected format
+        if not re.match(r"^(?:\d+.)*\d+$", version):
+            msg = "wrong format for the version argument. Only dot separated digits are allowed."
+            raise ValueError(msg)
 
         # If we have information on this compiler we need to check the
         # version being used
