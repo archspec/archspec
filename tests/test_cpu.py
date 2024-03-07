@@ -75,8 +75,7 @@ def expected_target(request, monkeypatch):
 
     monkeypatch.setattr(cpu.detect.platform, "machine", lambda: str(architecture_family))
 
-    test_dir = os.path.dirname(__file__)
-    target_dir = os.path.join(test_dir, "..", "archspec", "json", "tests", "targets")
+    target_dir = targets_directory()
     # Monkeypatch for linux
     if platform in ("linux", "bgq"):
         monkeypatch.setattr(cpu.detect.platform, "system", lambda: "Linux")
@@ -91,46 +90,81 @@ def expected_target(request, monkeypatch):
 
     elif platform == "darwin":
         monkeypatch.setattr(cpu.detect.platform, "system", lambda: "Darwin")
-
         filename = os.path.join(target_dir, request.param)
-        info = {}
-        with open(filename) as f:
-            for line in f:
-                key, value = line.split(":")
-                info[key.strip()] = value.strip()
-
-        def _check_output(args, env):
-            current_key = args[-1]
-            return info[current_key]
-
-        monkeypatch.setattr(cpu.detect, "_check_output", _check_output)
+        monkeypatch.setattr(cpu.detect, "_check_output", mock_check_output(filename))
 
     elif platform == "windows":
         monkeypatch.setattr(cpu.detect.platform, "system", lambda: "Windows")
         filename = os.path.join(target_dir, request.param)
-
-        class MockRegisters(NamedTuple):
-            eax: int
-            ebx: int
-            ecx: int
-            edx: int
-
-        class MockCPUID:
-            def __init__(self):
-                self.data = {}
-                with open(filename) as f:
-                    reader = csv.reader(f)
-                    for row in reader:
-                        key = int(row[0]), int(row[1])
-                        values = tuple(int(x) for x in row[2:])
-                        self.data[key] = MockRegisters(*values)
-
-            def registers_for(self, eax, ecx):
-                return self.data.get((eax, ecx), MockRegisters(0, 0, 0, 0))
-
-        monkeypatch.setattr(cpu.detect, "CPUID", MockCPUID)
+        monkeypatch.setattr(cpu.detect, "CPUID", mock_CpuidInfoCollector(filename))
 
     return archspec.cpu.TARGETS[target]
+
+
+def targets_directory():
+    test_dir = os.path.dirname(__file__)
+    target_dir = os.path.join(test_dir, "..", "archspec", "json", "tests", "targets")
+    return target_dir
+
+
+@pytest.fixture(
+    params=[
+        ("darwin-mojave-ivybridge", "Intel(R) Core(TM) i5-3230M CPU @ 2.60GHz"),
+        ("darwin-mojave-haswell", "Intel(R) Core(TM) i7-4980HQ CPU @ 2.80GHz"),
+        ("darwin-mojave-skylake", "Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"),
+        ("darwin-monterey-m1", "Apple M1 Pro"),
+        ("darwin-monterey-m2", "Apple M2"),
+        ("windows-cpuid-broadwell", "Intel(R) Core(TM) i7-5500U CPU @ 2.40GHz"),
+        ("windows-cpuid-icelake", "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz"),
+    ]
+)
+def expected_brand_string(request, monkeypatch):
+    test_file, expected_result = request.param
+    filename = os.path.join(targets_directory(), test_file)
+    if "darwin" in test_file:
+        monkeypatch.setattr(archspec.cpu.detect.platform, "system", lambda: "Darwin")
+        monkeypatch.setattr(archspec.cpu.detect, "_check_output", mock_check_output(filename))
+    elif "cpuid" in test_file:
+        monkeypatch.setattr(archspec.cpu.detect.platform, "system", lambda: "Windows")
+        monkeypatch.setattr(archspec.cpu.detect, "CPUID", mock_CpuidInfoCollector(filename))
+    return expected_result
+
+
+def mock_check_output(filename):
+    info = {}
+    with open(filename) as f:
+        for line in f:
+            key, value = line.split(":")
+            info[key.strip()] = value.strip()
+
+    def _check_output(args, env):
+        current_key = args[-1]
+        return info[current_key]
+
+    return _check_output
+
+
+def mock_CpuidInfoCollector(filename):
+    class MockRegisters(NamedTuple):
+        eax: int
+        ebx: int
+        ecx: int
+        edx: int
+
+    class MockCPUID:
+        def __init__(self):
+            self.data = {}
+            with open(filename) as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    key = int(row[0]), int(row[1])
+                    values = tuple(int(x) for x in row[2:])
+                    self.data[key] = MockRegisters(*values)
+
+        def registers_for(self, eax, ecx):
+            return self.data.get((eax, ecx), MockRegisters(0, 0, 0, 0))
+
+    return MockCPUID
 
 
 @pytest.fixture(params=[x for x in archspec.cpu.TARGETS])
@@ -470,3 +504,7 @@ def test_only_one_extension_file(extension_file, monkeypatch, reset_global_state
     reset_global_state()
     assert "pentium2.5" in archspec.cpu.TARGETS
     assert "flags" in archspec.cpu.schema.CPUID_JSON
+
+
+def test_brand_string(expected_brand_string):
+    assert archspec.cpu.detect.brand_string() == expected_brand_string
