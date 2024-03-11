@@ -156,7 +156,7 @@ class CpuidInfoCollector:
         return register & mask > 0
 
     def brand_string(self) -> Optional[str]:
-        """Returns the branch string, if available."""
+        """Returns the brand string, if available."""
         if self.highest_extension_support < 0x80000004:
             return None
 
