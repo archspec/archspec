@@ -241,7 +241,10 @@ class Microarchitecture:
 
         # Check that the version matches the expected format
         if not re.match(r"^(?:\d+\.)*\d+$", version):
-            msg = "invalid format for the compiler version argument. Only dot separated digits are allowed."
+            msg = (
+                "invalid format for the compiler version argument. "
+                "Only dot separated digits are allowed."
+            )
             raise ValueError(msg)
 
         # If we have information on this compiler we need to check the
