@@ -387,7 +387,9 @@ class ArchspecError(Exception):
 
 
 class UnsupportedMicroarchitecture(ArchspecError, ValueError):
-    """Raised if a compiler version does not support optimization for a given micro-architecture."""
+    """Raised if a compiler version does not support optimization for a given
+    micro-architecture.
+    """
 
 
 class InvalidCompilerVersion(ArchspecError, ValueError):
