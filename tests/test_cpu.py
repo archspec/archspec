@@ -522,5 +522,8 @@ def test_error_message_unknown_compiler_version(version_str):
     raises a comprehensible error message.
     """
     t = archspec.cpu.TARGETS["icelake"]
-    with pytest.raises(ValueError, match="invalid format for the compiler version argument"):
+    with pytest.raises(
+        archspec.cpu.InvalidCompilerVersion,
+        match="invalid format for the compiler version argument",
+    ):
         t.optimization_flags("gcc", version_str)

@@ -245,7 +245,7 @@ class Microarchitecture:
                 "invalid format for the compiler version argument. "
                 "Only dot separated digits are allowed."
             )
-            raise ValueError(msg)
+            raise InvalidCompilerVersion(msg)
 
         # If we have information on this compiler we need to check the
         # version being used
@@ -382,7 +382,13 @@ def _known_microarchitectures():
 TARGETS = LazyDictionary(_known_microarchitectures)
 
 
-class UnsupportedMicroarchitecture(ValueError):
-    """Raised if a compiler version does not support optimization for a given
-    micro-architecture.
-    """
+class ArchspecError(Exception):
+    """Base class for errors within archspec"""
+
+
+class UnsupportedMicroarchitecture(ArchspecError, ValueError):
+    """Raised if a compiler version does not support optimization for a given micro-architecture."""
+
+
+class InvalidCompilerVersion(ArchspecError, ValueError):
+    """Raised when an invalid format is used for compiler versions in archspec."""
