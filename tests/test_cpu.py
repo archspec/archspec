@@ -58,6 +58,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-rhel8-power9",
         "linux-unknown-power10",
         "linux-ubuntu22.04-neoverse_v2",
+        "linux-rhel9-neoverse_v2",
         "windows-cpuid-broadwell",
         "windows-cpuid-icelake",
     ]
