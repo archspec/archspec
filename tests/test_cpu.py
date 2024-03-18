@@ -509,3 +509,22 @@ def test_only_one_extension_file(extension_file, monkeypatch, reset_global_state
 
 def test_brand_string(expected_brand_string):
     assert archspec.cpu.detect.brand_string() == expected_brand_string
+
+
+@pytest.mark.parametrize(
+    "version_str",
+    [
+        "13.2.0.debug",
+        "optimized",
+    ],
+)
+def test_error_message_unknown_compiler_version(version_str):
+    """Tests that passing a version to Microarchitecture.optimization_flags with a wrong format,
+    raises a comprehensible error message.
+    """
+    t = archspec.cpu.TARGETS["icelake"]
+    with pytest.raises(
+        archspec.cpu.InvalidCompilerVersion,
+        match="invalid format for the compiler version argument",
+    ):
+        t.optimization_flags("gcc", version_str)
