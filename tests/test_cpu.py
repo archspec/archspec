@@ -61,6 +61,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-rhel9-neoverse_v2",
         "windows-cpuid-broadwell",
         "windows-cpuid-icelake",
+        "linux-rhel8-neoverse_v1",
     ]
 )
 def expected_target(request, monkeypatch):
