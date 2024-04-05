@@ -219,17 +219,18 @@ def _machine():
     if operating_system not in ("Darwin", "Windows"):
         return machine
 
-    if machine == "arm64":
-        # Note that a Python interpreter on Apple M1 would return
-        # "arm64" instead of "aarch64". Here we normalize to the latter.
-        return AARCH64
-
     # Normalize windows specific names
     if operating_system == "Windows":
         platform_machine = platform.machine()
         return WINDOWS_MAPPING.get(platform_machine, platform_machine)
 
-    return machine
+    # Apple
+    if machine == X86_64 and (not _using_rossetta() or USE_PYTHON_ARCH):
+        return X86_64
+    else:
+        # Note that a Python interpreter on Apple M1 would return
+        # "arm64" instead of "aarch64". Here we normalize to the latter.
+        return AARCH64
 
 
 def _using_rossetta():
@@ -259,7 +260,7 @@ def sysctl_info() -> Microarchitecture:
             ["arch", f"-{arch}", "sysctl"] + list(args), env=child_environment
         ).strip()
 
-    if _machine() == X86_64 and (not _using_rossetta() or USE_PYTHON_ARCH):
+    if _machine() == X86_64:
         if _using_rossetta():
             features = f'{sysctl_arch("x86_64", "-n", "machdep.cpu.features").lower()}'
             features = set(features.split())
