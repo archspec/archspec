@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "archspec"
-version = "0.2.2"
+version = "0.2.3"
 description = "A library to query system architecture"
 license = "Apache-2.0 OR MIT"
 authors = ["archspec developers <maintainers@spack.io>"]
@@ -23,6 +23,13 @@ classifiers = [
     "Operating System :: POSIX :: Linux",
     "Operating System :: Unix"
 ]
+include = [
+    { path = "tests", format = "sdist"}
+]
+exclude = [
+    "archspec/json/.git" ,
+    "archspec/json/.github" ,
+]
 
 [tool.poetry.dependencies]
 python = "3.6.15 || ^3.7"
@@ -31,7 +38,10 @@ python = "3.6.15 || ^3.7"
 optional = true
 
 [tool.poetry.group.test.dependencies]
-pytest = { version = "^7", python = "^3.7" }
+pytest = [
+    { version = "^7", python = "==3.7" },
+    { version = "^8", python = "^3.8" }
+]
 pytest-cov = { version = "^4", python = "^3.7" }
 jsonschema = { version = "^4", python = "^3.7" }
 typing-extensions = { version = "==4.7.1", python = "==3.7"}
@@ -40,9 +50,25 @@ typing-extensions = { version = "==4.7.1", python = "==3.7"}
 optional = true
 
 [tool.poetry.group.linters.dependencies]
-pylint = { version = "^2", python = "^3.7" }
-flake8 = { version = "^5", python = "^3.7" }
-black = { version = "^22.0.0", python = "^3.8" }
+pylint = { version = "^3", python = "^3.8" }
+flake8 = { version = "^7", python = "^3.8.1" }
+black = { version = "^24", python = "^3.8" }
+isort = { version = "^5", python = "^3.8" }
+
+[tool.isort]
+profile = "black"
+skip_glob = "archspec/vendor/*"
+
+[tool.black]
+line-length = 99
+target-version = ['py36', 'py37', 'py38', 'py39', 'py310', 'py311', 'py312']
+extend-exclude = """
+# A regex preceded with ^/ will apply only to files and directories
+# in the root of the project.
+(
+  ^/archspec/vendor
+)
+"""
 
 [tool.poetry.scripts]
 archspec = 'archspec.cli:main'

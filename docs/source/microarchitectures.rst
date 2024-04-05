@@ -73,6 +73,35 @@ instructions, but the actual labels might differ a bit to enhance their readabil
 On top of this static information ``archspec`` provides language bindings with logic to
 detect, query and compare different microarchitectures.
 
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+User specified JSON database
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Users have two ways to customize the JSON files of ``archspec``. They can either set the ``ARCHSPEC_CPU_DIR``
+environment variable to a directory where they provide a *complete replacement* of all the JSON files expected
+by the package, or they can set the ``ARCHSPEC_EXTENSION_CPU_DIR`` environment variable to a directory where
+they can prepare JSON files containing only the items they need to add or override.
+
+In the latter case, the update of the default JSON files is done on the top-level attribute. This means, for
+instance, that a JSON file to add or override the ``pentium2`` architecture looks like the following:
+
+.. code-block:: json
+
+   {
+     "microarchitectures": {
+       "pentium2": {
+         "from": ["i686"],
+         "vendor": "GenuineIntel",
+         "features": [
+           "mmx"
+         ]
+       }
+     }
+   }
+
+This feature might be helpful when working with unreleased hardware, or when using virtualized environments
+that don't provide the same CPU flags as their corresponding bare metal counterpart.
+
 .. _cpu_host_detection:
 
 --------------

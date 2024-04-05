@@ -3,12 +3,13 @@
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
-import pytest
-
 import contextlib
+import csv
 import os.path
+from typing import NamedTuple
 
 import jsonschema
+import pytest
 
 import archspec.cpu
 import archspec.cpu.alias
@@ -57,6 +58,10 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-rhel8-power9",
         "linux-unknown-power10",
         "linux-ubuntu22.04-neoverse_v2",
+        "linux-rhel9-neoverse_v2",
+        "windows-cpuid-broadwell",
+        "windows-cpuid-icelake",
+        "linux-rhel8-neoverse_v1",
     ]
 )
 def expected_target(request, monkeypatch):
@@ -66,17 +71,13 @@ def expected_target(request, monkeypatch):
     # This is the default to use for tests on Darwin, since it will match
     # Intel based MacBook, and will be the worst case scenario for Apple M1
     # (i.e. Python for x86_64 running on top of Rosetta)
-    architecture_family = "x86_64"
-    # If the platform is not darwin, get the correct architecture
-    if platform != "darwin":
-        architecture_family = archspec.cpu.TARGETS[target].family
+    architecture_family = "x86_64" if platform == "darwin" else archspec.cpu.TARGETS[target].family
+    if platform == "windows":
+        architecture_family = "AMD64" if architecture_family == "x86_64" else "ARM64"
 
-    monkeypatch.setattr(
-        cpu.detect.platform, "machine", lambda: str(architecture_family)
-    )
+    monkeypatch.setattr(cpu.detect.platform, "machine", lambda: str(architecture_family))
 
-    test_dir = os.path.dirname(__file__)
-    target_dir = os.path.join(test_dir, "..", "archspec", "json", "tests", "targets")
+    target_dir = targets_directory()
     # Monkeypatch for linux
     if platform in ("linux", "bgq"):
         monkeypatch.setattr(cpu.detect.platform, "system", lambda: "Linux")
@@ -91,21 +92,81 @@ def expected_target(request, monkeypatch):
 
     elif platform == "darwin":
         monkeypatch.setattr(cpu.detect.platform, "system", lambda: "Darwin")
-
         filename = os.path.join(target_dir, request.param)
-        info = {}
-        with open(filename) as f:
-            for line in f:
-                key, value = line.split(":")
-                info[key.strip()] = value.strip()
+        monkeypatch.setattr(cpu.detect, "_check_output", mock_check_output(filename))
 
-        def _check_output(args, env):
-            current_key = args[-1]
-            return info[current_key]
-
-        monkeypatch.setattr(cpu.detect, "_check_output", _check_output)
+    elif platform == "windows":
+        monkeypatch.setattr(cpu.detect.platform, "system", lambda: "Windows")
+        filename = os.path.join(target_dir, request.param)
+        monkeypatch.setattr(cpu.detect, "CPUID", mock_CpuidInfoCollector(filename))
 
     return archspec.cpu.TARGETS[target]
+
+
+def targets_directory():
+    test_dir = os.path.dirname(__file__)
+    target_dir = os.path.join(test_dir, "..", "archspec", "json", "tests", "targets")
+    return target_dir
+
+
+@pytest.fixture(
+    params=[
+        ("darwin-mojave-ivybridge", "Intel(R) Core(TM) i5-3230M CPU @ 2.60GHz"),
+        ("darwin-mojave-haswell", "Intel(R) Core(TM) i7-4980HQ CPU @ 2.80GHz"),
+        ("darwin-mojave-skylake", "Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"),
+        ("darwin-monterey-m1", "Apple M1 Pro"),
+        ("darwin-monterey-m2", "Apple M2"),
+        ("windows-cpuid-broadwell", "Intel(R) Core(TM) i7-5500U CPU @ 2.40GHz"),
+        ("windows-cpuid-icelake", "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz"),
+    ]
+)
+def expected_brand_string(request, monkeypatch):
+    test_file, expected_result = request.param
+    filename = os.path.join(targets_directory(), test_file)
+    if "darwin" in test_file:
+        monkeypatch.setattr(archspec.cpu.detect.platform, "system", lambda: "Darwin")
+        monkeypatch.setattr(archspec.cpu.detect, "_check_output", mock_check_output(filename))
+    elif "cpuid" in test_file:
+        monkeypatch.setattr(archspec.cpu.detect.platform, "system", lambda: "Windows")
+        monkeypatch.setattr(archspec.cpu.detect, "CPUID", mock_CpuidInfoCollector(filename))
+    return expected_result
+
+
+def mock_check_output(filename):
+    info = {}
+    with open(filename) as f:
+        for line in f:
+            key, value = line.split(":")
+            info[key.strip()] = value.strip()
+
+    def _check_output(args, env):
+        current_key = args[-1]
+        return info[current_key]
+
+    return _check_output
+
+
+def mock_CpuidInfoCollector(filename):
+    class MockRegisters(NamedTuple):
+        eax: int
+        ebx: int
+        ecx: int
+        edx: int
+
+    class MockCPUID:
+        def __init__(self):
+            self.data = {}
+            with open(filename) as f:
+                reader = csv.reader(f)
+                for row in reader:
+                    key = int(row[0]), int(row[1])
+                    values = tuple(int(x) for x in row[2:])
+                    self.data[key] = MockRegisters(*values)
+
+        def registers_for(self, eax, ecx):
+            return self.data.get((eax, ecx), MockRegisters(0, 0, 0, 0))
+
+    return MockCPUID
 
 
 @pytest.fixture(params=[x for x in archspec.cpu.TARGETS])
@@ -113,9 +174,31 @@ def supported_target(request):
     return request.param
 
 
+@pytest.fixture()
+def extension_file(tmp_path):
+    extension_file = tmp_path / "microarchitectures.json"
+    extension_file.write_text(
+        """
+{
+  "microarchitectures": {
+    "pentium2.5": {
+      "from": ["pentium2"],
+      "vendor": "BogusIntel",
+      "features": [
+        "mmx",
+        "mehmehx"
+      ]
+    }
+  }
+}
+"""
+    )
+    return extension_file
+
+
 def test_target_detection(expected_target):
     detected_target = archspec.cpu.host()
-    assert detected_target == expected_target
+    assert detected_target == expected_target, f"{detected_target} == {expected_target}"
 
 
 def test_no_dashes_in_target_names(supported_target):
@@ -236,12 +319,14 @@ def test_generic_microarchitecture():
     assert generic_march.vendor == "generic"
 
 
-def test_target_json_schema():
-    # The file microarchitectures.json contains static data i.e. data that is
-    # not meant to be modified by users directly. It is thus sufficient to
-    # validate it only once during unit tests.
-    json_data = archspec.cpu.schema.TARGETS_JSON.data
-    schema = archspec.cpu.schema.SCHEMA.data
+@pytest.mark.parametrize(
+    "json_data,schema",
+    [
+        (archspec.cpu.schema.TARGETS_JSON.data, archspec.cpu.schema.TARGETS_JSON_SCHEMA.data),
+        (archspec.cpu.schema.CPUID_JSON.data, archspec.cpu.schema.CPUID_JSON_SCHEMA.data),
+    ],
+)
+def test_validate_json_files(json_data, schema):
     jsonschema.validate(json_data, schema)
 
 
@@ -364,7 +449,7 @@ def test_version_components(version, expected_number, expected_suffix):
 
 
 def test_all_alias_predicates_are_implemented():
-    schema = archspec.cpu.schema.SCHEMA
+    schema = archspec.cpu.schema.TARGETS_JSON_SCHEMA
     fa_schema = schema["properties"]["feature_aliases"]
     aliases_in_schema = set(fa_schema["patternProperties"]["([\\w]*)"]["properties"])
     aliases_implemented = set(archspec.cpu.alias._FEATURE_ALIAS_PREDICATE)
@@ -388,10 +473,59 @@ def test_generic_property(target, expected):
 
 
 def test_versions_are_ranges(supported_target):
-    """Tests that all the copmiler versions in the JSON file are ranges, containing an
+    """Tests that all the compiler versions in the JSON file are ranges, containing an
     explicit ':' character.
     """
     target_under_test = archspec.cpu.TARGETS[supported_target]
     for compiler_name, entries in target_under_test.compilers.items():
         for compiler_info in entries:
             assert ":" in compiler_info["versions"]
+
+
+def test_round_trip_dict():
+    for name in archspec.cpu.TARGETS:
+        uarch_copy = Microarchitecture.from_dict(archspec.cpu.TARGETS[name].to_dict())
+        assert uarch_copy == archspec.cpu.TARGETS[name]
+
+
+def test_microarchitectures_extension(extension_file, monkeypatch, reset_global_state):
+    """Tests that we can update the JSON file using a user defined extension"""
+    monkeypatch.setenv("ARCHSPEC_EXTENSION_CPU_DIR", str(extension_file.parent))
+    reset_global_state()
+    assert "pentium2.5" in archspec.cpu.TARGETS
+    assert "mehmehx" in archspec.cpu.TARGETS["pentium2.5"]
+    assert archspec.cpu.TARGETS["pentium2.5"].vendor == "BogusIntel"
+    assert archspec.cpu.TARGETS["pentium2"] < archspec.cpu.TARGETS["pentium2.5"]
+
+
+def test_only_one_extension_file(extension_file, monkeypatch, reset_global_state):
+    """Tests that we can supply only one extension file in a custom directory, and that reading
+    any other JSON file will not give errors.
+    """
+    monkeypatch.setenv("ARCHSPEC_EXTENSION_CPU_DIR", str(extension_file.parent))
+    reset_global_state()
+    assert "pentium2.5" in archspec.cpu.TARGETS
+    assert "flags" in archspec.cpu.schema.CPUID_JSON
+
+
+def test_brand_string(expected_brand_string):
+    assert archspec.cpu.detect.brand_string() == expected_brand_string
+
+
+@pytest.mark.parametrize(
+    "version_str",
+    [
+        "13.2.0.debug",
+        "optimized",
+    ],
+)
+def test_error_message_unknown_compiler_version(version_str):
+    """Tests that passing a version to Microarchitecture.optimization_flags with a wrong format,
+    raises a comprehensible error message.
+    """
+    t = archspec.cpu.TARGETS["icelake"]
+    with pytest.raises(
+        archspec.cpu.InvalidCompilerVersion,
+        match="invalid format for the compiler version argument",
+    ):
+        t.optimization_flags("gcc", version_str)
