@@ -307,7 +307,7 @@ def generic_microarchitecture(name):
     Args:
         name (str): name of the micro-architecture
     """
-    return Microarchitecture(name, parents=[], vendor="generic", features=[], compilers={})
+    return Microarchitecture(name, parents=[], vendor="generic", features=set(), compilers={})
 
 
 def version_components(version):
