@@ -6,6 +6,6 @@ import archspec
 
 
 def test_version():
-    assert archspec.__version__ == "0.2.3"
+    assert archspec.__version__ == "0.2.4"
     with open("pyproject.toml") as fp:
         assert 'version = "' + archspec.__version__ + '"\n' in fp.read()
