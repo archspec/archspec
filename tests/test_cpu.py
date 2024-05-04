@@ -127,6 +127,7 @@ def expected_brand_string(request, monkeypatch):
         monkeypatch.setattr(archspec.cpu.detect.platform, "system", lambda: "Darwin")
         monkeypatch.setattr(archspec.cpu.detect, "_check_output", mock_check_output(filename))
     elif "cpuid" in test_file:
+        monkeypatch.setattr(archspec.cpu.detect, "host", lambda: archspec.cpu.TARGETS["x86_64"])
         monkeypatch.setattr(archspec.cpu.detect.platform, "system", lambda: "Windows")
         monkeypatch.setattr(archspec.cpu.detect, "CPUID", mock_CpuidInfoCollector(filename))
     return expected_result
