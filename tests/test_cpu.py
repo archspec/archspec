@@ -68,10 +68,7 @@ def expected_target(request, monkeypatch):
     cpu = archspec.cpu
     platform, operating_system, target = request.param.split("-")
 
-    # This is the default to use for tests on Darwin, since it will match
-    # Intel based MacBook, and will be the worst case scenario for Apple M1
-    # (i.e. Python for x86_64 running on top of Rosetta)
-    architecture_family = "x86_64" if platform == "darwin" else archspec.cpu.TARGETS[target].family
+    architecture_family = archspec.cpu.TARGETS[target].family
     if platform == "windows":
         architecture_family = "AMD64" if architecture_family == "x86_64" else "ARM64"
 
