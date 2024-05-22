@@ -10,6 +10,8 @@ import re
 import struct
 import subprocess
 import warnings
+import pathlib
+import json
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from ..vendor.cpuid.cpuid import CPUID
@@ -88,6 +90,7 @@ def proc_cpuinfo() -> Microarchitecture:
 
     if architecture == AARCH64:
         return partial_uarch(
+            name=_arm_cpu_name_by_id(data),
             vendor=_canonicalize_aarch64_vendor(data),
             features=_feature_set(data, key="Features"),
         )
@@ -277,6 +280,47 @@ def _ensure_bin_usrbin_in_path():
             search_paths.append(additional_path)
     child_environment["PATH"] = os.pathsep.join(search_paths)
     return child_environment
+
+
+def _munge_arm_corename(name: str) -> str:
+    # archspec convention for aarch64 is "corename_nn" - but neoverse in Arm's data is eg. "Neoverse V1"
+
+    return re.sub(r' ', '_', name).lower()
+
+def _load_arm_cores():
+
+    json_dir = pathlib.Path(__file__).parent / ".." / "json" / "cpu" / "arm_data"
+
+    json_dir = json_dir.absolute()
+    json_file = json_dir / "cpus.json"
+
+    with open(json_file, "r", encoding = "utf-8") as file:
+        data = json.load(file)
+        byid = {}
+        for cpu in data["cpus"]:
+            byid[int(cpu["cpuid"],0)] = _munge_arm_corename(cpu["name"])
+
+        return byid
+
+ARM_CORES_BY_ID = _load_arm_cores()
+
+def _arm_cpu_name_by_id(data: Dict[str, str]) -> str:
+    """Use CPU implementer and CPU part to identify microarchitecture uniquely"""
+    if "CPU implementer" not in data:
+        return ""
+    if _canonicalize_aarch64_vendor(data) != "ARM":
+        return ""       # aarch64 CPU cores not designed by Arm are not in Arm's data set
+
+    if "CPU part" not in data:
+        return ""
+
+    part = data["CPU part"]
+    implementer = data["CPU implementer"]
+    cpuid = (int(implementer,0) << 12) | int(part,0)
+    if cpuid in ARM_CORES_BY_ID:
+        return ARM_CORES_BY_ID[cpuid]
+    else:
+        return ""
 
 
 def _canonicalize_aarch64_vendor(data: Dict[str, str]) -> str:
