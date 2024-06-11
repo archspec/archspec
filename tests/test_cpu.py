@@ -102,6 +102,38 @@ def expected_target(request, monkeypatch):
 
     return archspec.cpu.TARGETS[target]
 
+@pytest.fixture(
+    params=[
+        "linux-centos7-thunderx2",
+        "linux-amazon-cortex_a72",
+        "linux-amazon-neoverse_n1",
+        "linux-amazon-neoverse_v1",
+        "linux-ubuntu22.04-neoverse_v2",
+        "linux-rhel9-neoverse_v2",
+        "linux-rhel8-neoverse_v1",
+    ]
+)
+def expected_linux_target(request, monkeypatch):
+    cpu = archspec.cpu
+    platform, operating_system, target = request.param.split("-")
+
+    monkeypatch.setattr(cpu.detect.platform, "machine", lambda: "aarch64")
+
+    target_dir = targets_directory()
+    monkeypatch.setattr(cpu.detect.platform, "system", lambda: "Linux")
+
+    @contextlib.contextmanager
+    def _open(not_used_arg):
+        filename = os.path.join(target_dir, request.param)
+        with open(filename) as f:
+            yield f
+    monkeypatch.setattr(cpu.detect, "open", _open, raising=False)
+
+    def _cpu_info():
+        return cpu.detect.proc_cpuinfo()
+    monkeypatch.setattr(cpu, "host", _cpu_info, raising=True)
+
+    return target
 
 def targets_directory():
     test_dir = os.path.dirname(__file__)
@@ -201,6 +233,14 @@ def test_target_detection(expected_target):
     detected_target = archspec.cpu.host()
     assert detected_target == expected_target, f"{detected_target} == {expected_target}"
 
+def test_microarchitecture_name(expected_linux_target):
+    detected_target = archspec.cpu.host()
+    if expected_linux_target == 'thunderx2':
+        ## We don't have cpuid for thunderx2 yet
+        assert detected_target.name == "", "Unexpected non-empy target for thunderx2"
+    else:
+        assert detected_target.name == expected_linux_target, f"\
+            {detected_target.name} == {expected_linux_target}"
 
 def test_no_dashes_in_target_names(supported_target):
     assert "-" not in supported_target
