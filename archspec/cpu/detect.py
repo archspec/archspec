@@ -88,6 +88,7 @@ def proc_cpuinfo() -> Microarchitecture:
 
     if architecture == AARCH64:
         return partial_uarch(
+            name = _get_name_from_cpuid(data),
             vendor=_canonicalize_aarch64_vendor(data),
             features=_feature_set(data, key="Features"),
         )
@@ -294,6 +295,18 @@ def _canonicalize_aarch64_vendor(data: Dict[str, str]) -> str:
     arm_vendors = TARGETS_JSON["conversions"]["arm_vendors"]
     arm_code = data["CPU implementer"]
     return arm_vendors.get(arm_code, arm_code)
+
+
+def _get_name_from_cpuid(data: Dict[str, str]) -> str:
+    # This function is only called for AARCH64 architectures
+    cpu_impl = data.get("CPU implementer","")
+    cpu_part = data.get("CPU part", "")
+
+    cpuid = cpu_impl + cpu_part[2:]
+    for m_arch, properties in TARGETS_JSON["microarchitectures"].items():
+        if "cpuid" in properties.keys() and properties["cpuid"] == cpuid:
+            return m_arch
+    return ""
 
 
 def _feature_set(data: Dict[str, str], key: str) -> Set[str]:
