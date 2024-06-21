@@ -103,7 +103,6 @@ class Microarchitecture:
     def __eq__(self, other):
         if not isinstance(other, Microarchitecture):
             return NotImplemented
-
         return (
             self.name == other.name
             and self.vendor == other.vendor
@@ -300,6 +299,18 @@ class Microarchitecture:
         msg = msg.format(self.name, compiler, version)
         raise UnsupportedMicroarchitecture(msg)
 
+class AARCH64_Microarchitecture(Microarchitecture):
+    """Represents a specific AARCH64 CPU micro-architecture.
+
+    The only addition to the Microarchitecture class it inherits
+    from is the cpuid field that for specific aarch64 architectures
+    should be present in the definition of the micro-architecture.
+    """
+
+    def __init__(self, name, parents, vendor, features, compilers, generation=0, cpuid = None):
+        self.cpuid = cpuid
+        super().__init__(name, parents, vendor, features, compilers, generation)
+
 
 def generic_microarchitecture(name):
     """Returns a generic micro-architecture with no vendor and no features.
@@ -361,7 +372,10 @@ def _known_microarchitectures():
         compilers = values.get("compilers", {})
         generation = values.get("generation", 0)
 
-        targets[name] = Microarchitecture(name, parents, vendor, features, compilers, generation)
+        if values.get("cpuid", None):
+            targets[name] = AARCH64_Microarchitecture(name, parents, vendor, features, compilers, generation, values["cpuid"])
+        else:
+            targets[name] = Microarchitecture(name, parents, vendor, features, compilers, generation)
 
     known_targets = {}
     data = archspec.cpu.schema.TARGETS_JSON["microarchitectures"]

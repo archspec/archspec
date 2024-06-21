@@ -13,7 +13,7 @@ import warnings
 from typing import Dict, List, Optional, Set, Tuple, Union
 
 from ..vendor.cpuid.cpuid import CPUID
-from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture
+from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture, AARCH64_Microarchitecture
 from .schema import CPUID_JSON, TARGETS_JSON
 
 #: Mapping from operating systems to chain of commands
@@ -47,8 +47,19 @@ def detection(operating_system: str):
 
 
 def partial_uarch(
-    name: str = "", vendor: str = "", features: Optional[Set[str]] = None, generation: int = 0
+    name: str = "", vendor: str = "", features: Optional[Set[str]] = None, generation: int = 0, cpuid: str = None
 ) -> Microarchitecture:
+    if cpuid:
+        return AARCH64_Microarchitecture(
+            name=name,
+            parents=[],
+            vendor=vendor,
+            features=features or set(),
+            compilers={},
+            generation=generation,
+            cpuid=cpuid
+    )
+
     """Construct a partial microarchitecture, from information gathered during system scan."""
     return Microarchitecture(
         name=name,
@@ -87,8 +98,10 @@ def proc_cpuinfo() -> Microarchitecture:
         )
 
     if architecture == AARCH64:
+        name_arch, cpuid = _get_name_from_cpuid(data)
         return partial_uarch(
-            name = _get_name_from_cpuid(data),
+            name = name_arch,
+            cpuid = cpuid,
             vendor=_canonicalize_aarch64_vendor(data),
             features=_feature_set(data, key="Features"),
         )
@@ -297,7 +310,7 @@ def _canonicalize_aarch64_vendor(data: Dict[str, str]) -> str:
     return arm_vendors.get(arm_code, arm_code)
 
 
-def _get_name_from_cpuid(data: Dict[str, str]) -> str:
+def _get_name_from_cpuid(data: Dict[str, str]) -> tuple[str, str]:
     # This function is only called for AARCH64 architectures
     cpu_impl = data.get("CPU implementer","")
     cpu_part = data.get("CPU part", "")
@@ -305,8 +318,8 @@ def _get_name_from_cpuid(data: Dict[str, str]) -> str:
     cpuid = cpu_impl + cpu_part[2:]
     for m_arch, properties in TARGETS_JSON["microarchitectures"].items():
         if "cpuid" in properties.keys() and properties["cpuid"] == cpuid:
-            return m_arch
-    return ""
+            return m_arch, cpuid
+    return "", ""
 
 
 def _feature_set(data: Dict[str, str], key: str) -> Set[str]:
@@ -436,6 +449,9 @@ def compatibility_check_for_aarch64(info, target):
     if platform.system() == "Darwin":
         model = TARGETS[info.name]
         return arch_root_and_vendor and (target == model or target in model.ancestors)
+
+    if isinstance(info, AARCH64_Microarchitecture) and isinstance(target, AARCH64_Microarchitecture):
+        return arch_root_and_vendor and info.cpuid == target.cpuid
 
     return arch_root_and_vendor and target.features.issubset(info.features)
 
