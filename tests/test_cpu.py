@@ -111,6 +111,7 @@ def expected_target(request, monkeypatch):
         "linux-amazon-neoverse_v1",
         "linux-ubuntu22.04-neoverse_v2",
         "linux-rhel9-neoverse_v2",
+        "linux-rhel9-neoverse_n2",
         "linux-rhel8-neoverse_v1",
     ]
 )
