@@ -73,13 +73,14 @@ class Microarchitecture:
     #: Aliases for micro-architecture's features
     feature_aliases = FEATURE_ALIASES
 
-    def __init__(self, name, parents, vendor, features, compilers, generation=0):
+    def __init__(self, name, parents, vendor, features, compilers, generation=0, cpuid=""):
         self.name = name
         self.parents = parents
         self.vendor = vendor
         self.features = features
         self.compilers = compilers
         self.generation = generation
+        self.cpuid = cpuid
         # Cache the ancestor computation
         self._ancestors = None
 
@@ -110,6 +111,7 @@ class Microarchitecture:
             and self.parents == other.parents  # avoid ancestors here
             and self.compilers == other.compilers
             and self.generation == other.generation
+            and self.cpuid == other.cpuid
         )
 
     @coerce_target_names
@@ -142,7 +144,7 @@ class Microarchitecture:
         cls_name = self.__class__.__name__
         fmt = (
             cls_name + "({0.name!r}, {0.parents!r}, {0.vendor!r}, "
-            "{0.features!r}, {0.compilers!r}, {0.generation!r})"
+            "{0.features!r}, {0.compilers!r}, {0.generation!r}, {0.cpuid!r})"
         )
         return fmt.format(self)
 
@@ -187,6 +189,7 @@ class Microarchitecture:
             "vendor": str(self.vendor),
             "features": sorted(str(x) for x in self.features),
             "generation": self.generation,
+            "cpuid": self.cpuid,
             "parents": [str(x) for x in self.parents],
             "compilers": self.compilers,
         }
@@ -201,6 +204,7 @@ class Microarchitecture:
             features=set(data["features"]),
             compilers=data.get("compilers", {}),
             generation=data.get("generation", 0),
+            cpuid = data.get("cpuid", "")
         )
 
     def optimization_flags(self, compiler, version):
@@ -299,18 +303,6 @@ class Microarchitecture:
         msg = msg.format(self.name, compiler, version)
         raise UnsupportedMicroarchitecture(msg)
 
-class AARCH64_Microarchitecture(Microarchitecture):
-    """Represents a specific AARCH64 CPU micro-architecture.
-
-    The only addition to the Microarchitecture class it inherits
-    from is the cpuid field that for specific aarch64 architectures
-    should be present in the definition of the micro-architecture.
-    """
-
-    def __init__(self, name, parents, vendor, features, compilers, generation=0, cpuid = None):
-        self.cpuid = cpuid
-        super().__init__(name, parents, vendor, features, compilers, generation)
-
 
 def generic_microarchitecture(name):
     """Returns a generic micro-architecture with no vendor and no features.
@@ -318,7 +310,7 @@ def generic_microarchitecture(name):
     Args:
         name (str): name of the micro-architecture
     """
-    return Microarchitecture(name, parents=[], vendor="generic", features=set(), compilers={})
+    return Microarchitecture(name, parents=[], vendor="generic", features=set(), compilers={}, cpuid="")
 
 
 def version_components(version):
@@ -371,11 +363,9 @@ def _known_microarchitectures():
         features = set(values["features"])
         compilers = values.get("compilers", {})
         generation = values.get("generation", 0)
+        cpuid = values.get("cpuid","")
 
-        if values.get("cpuid", None):
-            targets[name] = AARCH64_Microarchitecture(name, parents, vendor, features, compilers, generation, values["cpuid"])
-        else:
-            targets[name] = Microarchitecture(name, parents, vendor, features, compilers, generation)
+        targets[name] = Microarchitecture(name, parents, vendor, features, compilers, generation, cpuid)
 
     known_targets = {}
     data = archspec.cpu.schema.TARGETS_JSON["microarchitectures"]
