@@ -47,7 +47,7 @@ def detection(operating_system: str):
 
 
 def partial_uarch(
-    name: str = "", vendor: str = "", features: Optional[Set[str]] = None, generation: int = 0
+    name: str = "", vendor: str = "", features: Optional[Set[str]] = None, generation: int = 0, cpuid: str = ""
 ) -> Microarchitecture:
     """Construct a partial microarchitecture, from information gathered during system scan."""
     return Microarchitecture(
@@ -57,6 +57,7 @@ def partial_uarch(
         features=features or set(),
         compilers={},
         generation=generation,
+        cpuid = cpuid
     )
 
 
@@ -87,7 +88,10 @@ def proc_cpuinfo() -> Microarchitecture:
         )
 
     if architecture == AARCH64:
+        name_arch, cpuid = _get_name_from_cpuinfo(data)
         return partial_uarch(
+            name = name_arch,
+            cpuid = cpuid,
             vendor=_canonicalize_aarch64_vendor(data),
             features=_feature_set(data, key="Features"),
         )
@@ -296,6 +300,21 @@ def _canonicalize_aarch64_vendor(data: Dict[str, str]) -> str:
     return arm_vendors.get(arm_code, arm_code)
 
 
+def _get_name_from_cpuinfo(data: Dict[str, str]) -> tuple[str, str]:
+    # This function is only called for AARCH64 architectures
+    cpu_impl = data.get("CPU implementer","")
+    cpu_part = data.get("CPU part", "")
+
+    arm_vendors = TARGETS_JSON["conversions"]["arm_vendors"]
+    assert cpu_impl in arm_vendors.keys()
+
+    cpuid = cpu_impl + cpu_part[2:]
+    for m_arch, properties in TARGETS_JSON["microarchitectures"].items():
+        if "cpupart" in properties.keys() and properties["cpupart"] == cpu_part:
+            return m_arch, cpuid
+    return "", ""
+
+
 def _feature_set(data: Dict[str, str], key: str) -> Set[str]:
     return set(data.get(key, "").split())
 
@@ -423,6 +442,9 @@ def compatibility_check_for_aarch64(info, target):
     if platform.system() == "Darwin":
         model = TARGETS[info.name]
         return arch_root_and_vendor and (target == model or target in model.ancestors)
+
+    if info.cpuid != "" and target.cpuid != "":
+        return arch_root_and_vendor and info.cpuid == target.cpuid
 
     return arch_root_and_vendor and target.features.issubset(info.features)
 

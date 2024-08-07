@@ -102,7 +102,6 @@ def expected_target(request, monkeypatch):
 
     return archspec.cpu.TARGETS[target]
 
-
 def targets_directory():
     test_dir = os.path.dirname(__file__)
     target_dir = os.path.join(test_dir, "..", "archspec", "json", "tests", "targets")
@@ -198,9 +197,18 @@ def extension_file(tmp_path):
 
 
 def test_target_detection(expected_target):
+    uarch = expected_target
     detected_target = archspec.cpu.host()
-    assert detected_target == expected_target, f"{detected_target} == {expected_target}"
+    assert detected_target == uarch, f"{detected_target} == {uarch}"
 
+def test_microarchitecture_name(expected_target):
+    uarch = expected_target
+    detected_target = archspec.cpu.host()
+    if uarch.vendor == 'ARM':
+        assert detected_target.name == uarch.name, f"\
+          {detected_target.name} == {uarch.name}"
+        assert detected_target.cpuid == uarch.cpuid, f"\
+          {detected_target.cpuid} == {uarch.cpuid}"
 
 def test_no_dashes_in_target_names(supported_target):
     assert "-" not in supported_target
