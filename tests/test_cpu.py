@@ -533,3 +533,12 @@ def test_error_message_unknown_compiler_version(version_str):
         match="invalid format for the compiler version argument",
     ):
         t.optimization_flags("gcc", version_str)
+
+
+@pytest.mark.parametrize(
+    "names,expected_length",
+    [(("icelake", "broadwell"), 2), (("icelake", "broadwell", "icelake"), 2)],
+)
+def test_targets_can_be_used_in_sets(names, expected_length):
+    s = {archspec.cpu.TARGETS[name] for name in names}
+    assert len(s) == expected_length
