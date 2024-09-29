@@ -24,6 +24,12 @@ INFO_FACTORY = collections.defaultdict(list)
 #: functions checking the compatibility of the host with a given target
 COMPATIBILITY_CHECKS = {}
 
+# Whether to use the architecture that the python process runs on
+# (possibly emulated) or the native CPU architecture.
+# Note that on Linux, the native CPU architecture
+# is not detected and returns the emulated architecture.
+USE_PYTHON_ARCH: bool = os.environ.get("ARCHSPEC_USE_PYTHON_ARCH", "false").lower() != "false"
+
 # Constants for commonly used architectures
 X86_64 = "x86_64"
 AARCH64 = "aarch64"
@@ -213,31 +219,38 @@ WINDOWS_MAPPING = {
 def _machine():
     """Return the machine architecture we are on"""
     operating_system = platform.system()
+    machine = platform.machine()
 
     # If we are not on Darwin or Windows, trust what Python tells us
     if operating_system not in ("Darwin", "Windows"):
-        return platform.machine()
+        return machine
 
     # Normalize windows specific names
     if operating_system == "Windows":
         platform_machine = platform.machine()
         return WINDOWS_MAPPING.get(platform_machine, platform_machine)
 
-    # On Darwin it might happen that we are on M1, but using an interpreter
-    # built for x86_64. In that case "platform.machine() == 'x86_64'", so we
-    # need to fix that.
-    #
-    # See: https://bugs.python.org/issue42704
+    # Apple
+    if machine == X86_64 and (not _using_rossetta() or USE_PYTHON_ARCH):
+        return X86_64
+    else:
+        # Note that a Python interpreter on Apple M1 would return
+        # "arm64" instead of "aarch64". Here we normalize to the latter.
+        return AARCH64
+
+
+def _using_rossetta():
+    """Return whether we are using x86_64 emulation on Darwin"""
+    operating_system = platform.system()
+
+    if operating_system != "Darwin":
+        return False
+
     output = _check_output(
         ["sysctl", "-n", "machdep.cpu.brand_string"], env=_ensure_bin_usrbin_in_path()
     ).strip()
 
-    if "Apple" in output:
-        # Note that a native Python interpreter on Apple M1 would return
-        # "arm64" instead of "aarch64". Here we normalize to the latter.
-        return AARCH64
-
-    return X86_64
+    return "Apple" in output
 
 
 @detection(operating_system="Darwin")
@@ -248,22 +261,34 @@ def sysctl_info() -> Microarchitecture:
     def sysctl(*args: str) -> str:
         return _check_output(["sysctl"] + list(args), env=child_environment).strip()
 
+    def sysctl_arch(arch, *args):
+        return _check_output(
+            ["arch", f"-{arch}", "sysctl"] + list(args), env=child_environment
+        ).strip()
+
     if _machine() == X86_64:
-        features = (
-            f'{sysctl("-n", "machdep.cpu.features").lower()} '
-            f'{sysctl("-n", "machdep.cpu.leaf7_features").lower()}'
-        )
-        features = set(features.split())
+        if _using_rossetta():
+            features = f'{sysctl_arch("x86_64", "-n", "machdep.cpu.features").lower()}'
+            features = set(features.split())
+            # Apple uses this values for the virtual machine in cpuid
+            vendor = "GenuineIntel"
+        else:
+            features = (
+                f'{sysctl("-n", "machdep.cpu.features").lower()} '
+                f'{sysctl("-n", "machdep.cpu.leaf7_features").lower()}'
+            )
+            features = set(features.split())
+            vendor = sysctl("-n", "machdep.cpu.vendor")
 
         # Flags detected on Darwin turned to their linux counterpart
         for darwin_flag, linux_flag in TARGETS_JSON["conversions"]["darwin_flags"].items():
             if darwin_flag in features:
                 features.update(linux_flag.split())
 
-        return partial_uarch(vendor=sysctl("-n", "machdep.cpu.vendor"), features=features)
+        return partial_uarch(vendor=vendor, features=features)
 
     model = "unknown"
-    model_str = sysctl("-n", "machdep.cpu.brand_string").lower()
+    model_str = sysctl_arch("arm64", "-n", "machdep.cpu.brand_string").lower()
     if "m2" in model_str:
         model = "m2"
     elif "m1" in model_str:
