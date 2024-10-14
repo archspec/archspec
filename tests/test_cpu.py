@@ -65,6 +65,7 @@ Microarchitecture = archspec.cpu.Microarchitecture
         "linux-unknown-neoverse_v2",
         "linux-rhel9-neoverse_n2",
         "linux-ubuntu22.04-neoverse_n2",
+        "linux-rocky9-zen5",
     ]
 )
 def expected_target(request, monkeypatch):
