@@ -20,7 +20,7 @@ jobs:
         include:
           - os: macos-13
             python-version: '3.8'
-          - os: ubuntu-latest
+          - os: ubuntu-22.04
             python-version: '3.7'
           - os: windows-latest
             python-version: '3.8'
