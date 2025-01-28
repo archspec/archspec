@@ -6,6 +6,7 @@
 import contextlib
 import csv
 import os.path
+from io import StringIO
 from typing import NamedTuple
 
 import jsonschema
@@ -15,9 +16,7 @@ import archspec.cpu
 import archspec.cpu.alias
 import archspec.cpu.detect
 import archspec.cpu.schema
-
-# This is needed to check that with repr we could create equivalent objects
-Microarchitecture = archspec.cpu.Microarchitecture
+from archspec.cpu import Microarchitecture
 
 
 @pytest.fixture(
@@ -216,7 +215,17 @@ def test_str_conversion(supported_target):
 
 def test_repr_conversion(supported_target):
     target = archspec.cpu.TARGETS[supported_target]
-    assert eval(repr(target)) == target
+    assert f"Microarchitecture({supported_target!r})" == repr(target)
+
+
+def test_tree(supported_target):
+    buffer = StringIO()
+    target = archspec.cpu.TARGETS[supported_target]
+    target.tree(buffer, indent=2)
+    tree_lines = buffer.getvalue().splitlines()
+    assert tree_lines[0].startswith(supported_target)
+    for parent in target.parents:
+        assert any(line.startswith(f"  {parent.name}") for line in tree_lines)
 
 
 def test_equality(supported_target):
