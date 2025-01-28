@@ -163,7 +163,7 @@ class Microarchitecture:
         stack: List[Tuple[int, Microarchitecture]] = [(0, self)]
         while stack:
             level, current = stack.pop()
-            print(f"{'':{level}}{current.name}", file=fp)
+            print(f"{'':>{level}}{current.name}", file=fp)
 
             if current.name in seen:
                 continue
