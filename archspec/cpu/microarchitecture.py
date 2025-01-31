@@ -93,6 +93,10 @@ class Microarchitecture:
         # Cache the "family" computation
         self._family: Optional["Microarchitecture"] = None
 
+        # ssse3 implies sse3; on Linux sse3 is not mentioned in /proc/cpuinfo, so add it ad-hoc.
+        if "ssse3" in self.features:
+            self.features.add("sse3")
+
     @property
     def ancestors(self) -> List["Microarchitecture"]:
         """All the ancestors of this microarchitecture."""
