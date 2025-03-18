@@ -50,10 +50,10 @@ typing-extensions = { version = "==4.7.1", python = "==3.7"}
 optional = true
 
 [tool.poetry.group.linters.dependencies]
-pylint = { version = "^3", python = "^3.8" }
-flake8 = { version = "^7", python = "^3.8.1" }
-black = { version = "^24", python = "^3.8" }
-isort = { version = "^5", python = "^3.8" }
+pylint = { version = "^3", python = "^3.9" }
+flake8 = { version = "^7", python = "^3.9" }
+black = { version = "^24", python = "^3.9" }
+isort = { version = "^5", python = "^3.9" }
 
 [tool.isort]
 profile = "black"

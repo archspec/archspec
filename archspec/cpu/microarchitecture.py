@@ -69,7 +69,7 @@ class Microarchitecture:
         cpu_part (str): cpu part of the architecture, if relevant.
     """
 
-    # pylint: disable=too-many-arguments,too-many-instance-attributes
+    # pylint: disable=too-many-arguments,too-many-positional-arguments,too-many-instance-attributes
     #: Aliases for micro-architecture's features
     feature_aliases = FEATURE_ALIASES
 
