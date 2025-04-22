@@ -51,22 +51,18 @@ jobs:
         file: ./coverage.xml
         flags: unittests
   py36:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
+    container: registry.access.redhat.com/ubi8/ubi
     steps:
     - uses: actions/checkout@v4
       with:
         submodules: true
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@v5
-      with:
-        python-version: ${{ matrix.python-version }}
-        cache: pip
-    - name: Install test dependencies
+    - name: Run tests using platform python (Python 3.6)
       run: |
+        /usr/libexec/platform-python -m venv ./py36
+        . ./py36/bin/activate
         pip install -U pip
         pip install -U pytest pytest-cov jsonschema
-    - name: Run tests
-      run: |
         pytest --cov=archspec
     - name: Upload to codecov.io
       uses: codecov/codecov-action@v5
