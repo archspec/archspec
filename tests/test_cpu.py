@@ -52,7 +52,6 @@ from archspec.cpu import Microarchitecture
         "linux-asahi-m2",
         "darwin-monterey-m2",
         "linux-rocky8-a64fx",
-        "linux-amazon2-sapphirerapids",
         "linux-unknown-sapphirerapids",
         "linux-rhel8-power9",
         "linux-unknown-power10",
