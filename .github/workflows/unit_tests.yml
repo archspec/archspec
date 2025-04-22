@@ -54,6 +54,9 @@ jobs:
     runs-on: ubuntu-latest
     container: registry.access.redhat.com/ubi8/ubi
     steps:
+    - name: Install git
+      run: |
+        dnf install -y git
     - uses: actions/checkout@v4
       with:
         submodules: true
