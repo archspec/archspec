@@ -9,9 +9,6 @@ import pytest
 
 import archspec
 import archspec.cli
-import archspec.cpu.detect
-import archspec.cpu.microarchitecture
-import archspec.cpu.schema
 
 
 @pytest.mark.parametrize("cli_args", [("--help",), ("cpu", "--help"), ("cpu",)])

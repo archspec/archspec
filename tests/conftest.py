@@ -4,9 +4,6 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 import pytest
 
-import archspec
-import archspec.cli
-import archspec.cpu
 import archspec.cpu.detect
 import archspec.cpu.microarchitecture
 import archspec.cpu.schema
