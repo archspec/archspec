@@ -10,7 +10,8 @@ import re
 import struct
 import subprocess
 import warnings
-from typing import Dict, List, Optional, Set, Tuple, Union
+from collections.abc import Callable
+from typing import Dict, List, Optional, Set, Tuple, Union, Any
 
 from ..vendor.cpuid.cpuid import CPUID
 from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture
@@ -22,7 +23,7 @@ INFO_FACTORY = collections.defaultdict(list)
 
 #: Mapping from micro-architecture families (x86_64, ppc64le, etc.) to
 #: functions checking the compatibility of the host with a given target
-COMPATIBILITY_CHECKS = {}
+COMPATIBILITY_CHECKS: Dict[str, Callable[[Microarchitecture, Microarchitecture], bool]] = {}
 
 # Constants for commonly used architectures
 X86_64 = "x86_64"
@@ -68,7 +69,7 @@ def partial_uarch(
 @detection(operating_system="Linux")
 def proc_cpuinfo() -> Microarchitecture:
     """Returns a partial Microarchitecture, obtained from scanning ``/proc/cpuinfo``"""
-    data = {}
+    data: Dict[str, Any] = {}
     with open("/proc/cpuinfo") as file:  # pylint: disable=unspecified-encoding
         for line in file:
             key, separator, value = line.partition(":")
@@ -100,12 +101,15 @@ def proc_cpuinfo() -> Microarchitecture:
 
     if architecture in (PPC64LE, PPC64):
         generation_match = re.search(r"POWER(\d+)", data.get("cpu", ""))
+        # There might be no match under emulated environments. For instance
+        # emulating a ppc64le with QEMU and Docker still reports the host
+        # /proc/cpuinfo and not a Power
+        if generation_match is None:
+            return partial_uarch(generation=0)
+
         try:
             generation = int(generation_match.group(1))
-        except AttributeError:
-            # There might be no match under emulated environments. For instance
-            # emulating a ppc64le with QEMU and Docker still reports the host
-            # /proc/cpuinfo and not a Power
+        except ValueError:
             generation = 0
         return partial_uarch(generation=generation)
 
@@ -249,11 +253,11 @@ def sysctl_info() -> Microarchitecture:
         return _check_output(["sysctl"] + list(args), env=child_environment).strip()
 
     if _machine() == X86_64:
-        features = (
+        raw_features = (
             f'{sysctl("-n", "machdep.cpu.features").lower()} '
             f'{sysctl("-n", "machdep.cpu.leaf7_features").lower()}'
         )
-        features = set(features.split())
+        features = set(raw_features.split())
 
         # Flags detected on Darwin turned to their linux counterpart
         for darwin_flag, linux_flag in TARGETS_JSON["conversions"]["darwin_flags"].items():
