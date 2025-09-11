@@ -18,17 +18,12 @@ jobs:
           - macos-latest
           - macos-13
           - windows-latest
-#        python-version: ['3.8', '3.9', '3.10', '3.11', '3.12', '3.13']
-#        include:
-#          - os: ubuntu-22.04
-#            python-version: '3.7'
 
     steps:
     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
       with:
         submodules: true
-    - name: Set up Python ${{ matrix.python-version }}
-      uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+    - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
       with:
         python-version: |
           3.8
@@ -38,7 +33,7 @@ jobs:
           3.12
           3.13
         cache: pip
-    - name: Install dependencies (Common)
+    - name: Install dependencies
       run: |
         pip install -U pip
         pip install -U poetry tox-gh coverage
