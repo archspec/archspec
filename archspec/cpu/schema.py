@@ -9,7 +9,7 @@ import collections.abc
 import json
 import os
 import pathlib
-from typing import Tuple, Optional
+from typing import Optional, Tuple
 
 
 class LazyDictionary(collections.abc.MutableMapping):

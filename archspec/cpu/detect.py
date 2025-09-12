@@ -10,7 +10,7 @@ import re
 import struct
 import subprocess
 import warnings
-from typing import Dict, List, Optional, Set, Tuple, Union, Any, Callable
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from ..vendor.cpuid.cpuid import CPUID
 from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture

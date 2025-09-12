@@ -8,7 +8,7 @@ import platform
 import re
 import sys
 import warnings
-from typing import IO, List, Set, Tuple, Dict, Union, Optional, Any
+from typing import IO, Any, Dict, List, Optional, Set, Tuple, Union
 
 from . import schema
 from .alias import FEATURE_ALIASES

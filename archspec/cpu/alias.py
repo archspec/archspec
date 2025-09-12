@@ -3,7 +3,7 @@
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """Aliases for microarchitecture features."""
-from typing import Dict, Callable
+from typing import Callable, Dict
 
 from .schema import TARGETS_JSON, LazyDictionary
 
