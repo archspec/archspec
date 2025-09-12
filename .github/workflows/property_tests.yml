@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   push:
     branches: [ master, 'releases/**' ]
+  pull_request:
+    branches: [ master, 'releases/**' ]
   schedule:
   - cron: "15 4 * * *"
     
