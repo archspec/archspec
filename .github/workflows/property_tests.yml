@@ -1,0 +1,35 @@
+name: Property-based tests
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ master, 'releases/**' ]
+  schedule:
+  - cron: "15 4 * * *"
+    
+jobs:
+  hypothesis:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      with:
+        submodules: true
+    - uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+      with:
+        python-version: 3.13
+        cache: pip
+    - name: Install dependencies
+      run: |
+        pip install -U pip
+        pip install -U poetry tox-gh coverage
+    - name: Run tests with tox
+      run: |
+        tox -e hypothesis
+        coverage xml
+    - name: Upload to codecov.io
+      uses: codecov/codecov-action@5a1091511ad55cbe89839c7260b706298ca349f7
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        verbose: true
+        fail_ci_if_error: false
+        flags: propertytests
