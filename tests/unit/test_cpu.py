@@ -139,7 +139,7 @@ def mock_check_output(filename):
     info = {}
     with open(filename) as f:
         for line in f:
-            key, value = line.split(":")
+            key, _, value = line.partition(":")
             info[key.strip()] = value.strip()
 
     def _check_output(args, env):

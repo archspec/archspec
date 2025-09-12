@@ -65,4 +65,4 @@ jobs:
         . ./py36/bin/activate
         pip install -U pip
         pip install -U pytest jsonschema
-        pytest
+        pytest tests/unit
