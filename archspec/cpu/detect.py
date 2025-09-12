@@ -10,7 +10,7 @@ import re
 import struct
 import subprocess
 import warnings
-from typing import Dict, List, Optional, Set, Tuple, Union
+from typing import Any, Callable, Dict, List, Optional, Set, Tuple, Union
 
 from ..vendor.cpuid.cpuid import CPUID
 from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture
@@ -22,7 +22,7 @@ INFO_FACTORY = collections.defaultdict(list)
 
 #: Mapping from micro-architecture families (x86_64, ppc64le, etc.) to
 #: functions checking the compatibility of the host with a given target
-COMPATIBILITY_CHECKS = {}
+COMPATIBILITY_CHECKS: Dict[str, Callable[[Microarchitecture, Microarchitecture], bool]] = {}
 
 # Constants for commonly used architectures
 X86_64 = "x86_64"
@@ -68,7 +68,7 @@ def partial_uarch(
 @detection(operating_system="Linux")
 def proc_cpuinfo() -> Microarchitecture:
     """Returns a partial Microarchitecture, obtained from scanning ``/proc/cpuinfo``"""
-    data = {}
+    data: Dict[str, Any] = {}
     with open("/proc/cpuinfo") as file:  # pylint: disable=unspecified-encoding
         for line in file:
             key, separator, value = line.partition(":")
@@ -100,12 +100,15 @@ def proc_cpuinfo() -> Microarchitecture:
 
     if architecture in (PPC64LE, PPC64):
         generation_match = re.search(r"POWER(\d+)", data.get("cpu", ""))
+        # There might be no match under emulated environments. For instance
+        # emulating a ppc64le with QEMU and Docker still reports the host
+        # /proc/cpuinfo and not a Power
+        if generation_match is None:
+            return partial_uarch(generation=0)
+
         try:
             generation = int(generation_match.group(1))
-        except AttributeError:
-            # There might be no match under emulated environments. For instance
-            # emulating a ppc64le with QEMU and Docker still reports the host
-            # /proc/cpuinfo and not a Power
+        except ValueError:
             generation = 0
         return partial_uarch(generation=generation)
 
@@ -210,7 +213,7 @@ WINDOWS_MAPPING = {
 }
 
 
-def _machine():
+def _machine() -> str:
     """Return the machine architecture we are on"""
     operating_system = platform.system()
 
@@ -249,11 +252,11 @@ def sysctl_info() -> Microarchitecture:
         return _check_output(["sysctl"] + list(args), env=child_environment).strip()
 
     if _machine() == X86_64:
-        features = (
+        raw_features = (
             f'{sysctl("-n", "machdep.cpu.features").lower()} '
             f'{sysctl("-n", "machdep.cpu.leaf7_features").lower()}'
         )
-        features = set(features.split())
+        features = set(raw_features.split())
 
         # Flags detected on Darwin turned to their linux counterpart
         for darwin_flag, linux_flag in TARGETS_JSON["conversions"]["darwin_flags"].items():
@@ -335,7 +338,7 @@ def compatible_microarchitectures(info: Microarchitecture) -> List[Microarchitec
     ]
 
 
-def host():
+def host() -> Microarchitecture:
     """Detects the host micro-architecture and returns it."""
     # Retrieve information on the host's cpu
     info = detected_info()
@@ -374,7 +377,7 @@ def compatibility_check(architecture_family: Union[str, Tuple[str, ...]]):
 
     A compatibility check function takes a partial Microarchitecture object as a first argument,
     and an arbitrary target Microarchitecture as the second argument. It returns True if the
-    target is compatible with first argument, False otherwise.
+    target is compatible with the first argument, False otherwise.
 
     Args:
         architecture_family: architecture family for which this test can be used
@@ -393,8 +396,8 @@ def compatibility_check(architecture_family: Union[str, Tuple[str, ...]]):
 @compatibility_check(architecture_family=(PPC64LE, PPC64))
 def compatibility_check_for_power(info, target):
     """Compatibility check for PPC64 and PPC64LE architectures."""
-    # We can use a target if it descends from our machine type and our
-    # generation (9 for POWER9, etc) is at least its generation.
+    # We can use a target if it descends from our machine type, and our
+    # generation (9 for POWER9, etc.) is at least its generation.
     arch_root = TARGETS[_machine()]
     return (
         target == arch_root or arch_root in target.ancestors
