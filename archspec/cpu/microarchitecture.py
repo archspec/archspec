@@ -8,7 +8,7 @@ import platform
 import re
 import sys
 import warnings
-from typing import IO, Any, Dict, List, Optional, Set, Tuple, Union
+from typing import IO, Any, Dict, FrozenSet, Iterator, List, Optional, Set, Tuple, Union
 
 from . import schema
 from .alias import FEATURE_ALIASES
@@ -237,6 +237,17 @@ class Microarchitecture:
             cpu_part=data.get("cpupart", ""),
         )
 
+    @staticmethod
+    def from_string(name: str) -> "Microarchitecture":
+        """Returns a micro-architecture from its name.
+
+        Raises:
+            ValueError: if the name is not a valid microarchitecture
+        """
+        if name not in TARGETS:
+            raise ValueError(f"unknown micro-architecture '{name}'")
+        return TARGETS[name]
+
     def optimization_flags(self, compiler: str, version: str) -> str:
         """Returns a string containing the optimization flags that needs to be used to produce
         code optimized for this micro-architecture.
@@ -331,6 +342,272 @@ class Microarchitecture:
             msg += " [no supported compiler versions]"
         msg = msg.format(self.name, compiler, version)
         raise UnsupportedMicroarchitecture(msg)
+
+
+def microarchitecture_min(m1: Microarchitecture, m2: Microarchitecture) -> Microarchitecture:
+    """Returns the most generic micro-architecture, if arguments are comparable
+
+    Raises:
+        ValueError: if arguments are not comparable
+    """
+    if m1 <= m2:
+        return m1
+
+    if m2 <= m1:
+        return m2
+
+    raise ValueError(f"{m1} and {m2} are not comparable")
+
+
+def microarchitecture_max(m1: Microarchitecture, m2: Microarchitecture) -> Microarchitecture:
+    """Returns the most specific micro-architecture, if arguments are comparable
+
+    Raises:
+        ValueError: if arguments are not comparable
+    """
+    if m1 <= m2:
+        return m2
+
+    if m2 <= m1:
+        return m1
+
+    raise ValueError(f"{m1} and {m2} are not comparable")
+
+
+class MicroarchitectureRange:
+    """A range of micro-architectures"""
+
+    def __init__(
+        self, *, lo: Optional[Microarchitecture] = None, hi: Optional[Microarchitecture] = None
+    ) -> None:
+        """Represents a range of microarchitectures, defined by a lower and an upper boundary.
+
+        Both boundaries are optional but must maintain logical consistency when defined.
+
+        If a boundary is None, the range is unbounded in that direction.
+        The lower boundary can always be inferred from the upper boundary and corresponds to
+        the family of the upper boundary.
+
+        If both boundaries are None, the range is empty.
+
+        Ranges are compared by their boundaries, and not by the microarchitectures they currently
+        enumerate. This keeps comparisons stable when new microarchitectures are added to the JSON
+        data: ``mic_knl:`` and ``mic_knl:mic_knl`` are different ranges, even though today
+        ``mic_knl`` has no descendant and both enumerate the same single microarchitecture.
+
+        Intersection is supported between ranges only if it doesn't result in ambiguous upper or
+        lower boundaries. This can happen because microarchitectures form a partial order that is
+        not a lattice, see ``__and__`` for details.
+
+        Args:
+            lo: The lower boundary of the microarchitecture range.
+            hi: The upper boundary of the microarchitecture range.
+
+        Raises:
+            InvalidRange: If the provided range boundaries are not consistent
+        """
+        if lo is not None and hi is not None and not lo <= hi:
+            raise InvalidRange(
+                f"the range ({lo}, {hi}) is invalid, since '{lo}' is not compatible with '{hi}'"
+            )
+
+        # lo can be inferred from hi, but not vice versa
+        if lo is None and hi is not None:
+            lo = hi.family
+
+        self.lo = lo
+        self.hi = hi
+
+        # The known microarchitectures in this range, computed lazily since it is only needed
+        # for iteration and for intersections
+        self._targets: Optional[FrozenSet[Microarchitecture]] = None
+
+    @property
+    def empty(self) -> bool:
+        """True if the range contains no microarchitecture, False otherwise"""
+        # If lo could not be inferred, this is the empty set
+        return self.lo is None
+
+    @property
+    def family(self) -> Optional[Microarchitecture]:
+        """The architecture family this range belongs to, or None if the range is empty"""
+        if self.lo is None:
+            return None
+        return self.lo.family
+
+    @property
+    def _known_targets(self) -> FrozenSet[Microarchitecture]:
+        """The known microarchitectures that fall in this range."""
+        if self._targets is None:
+            self._targets = frozenset(x for x in TARGETS.values() if x in self)
+        return self._targets
+
+    def __contains__(self, item: Union[str, Microarchitecture]) -> bool:
+        if isinstance(item, str):
+            item = Microarchitecture.from_string(item)
+
+        if not isinstance(item, Microarchitecture):
+            msg = "only objects of string or Microarchitecture types are accepted [got {0}]"
+            raise TypeError(msg.format(str(type(item))))
+
+        if self.lo is None:
+            return False
+
+        return self.lo <= item and (self.hi is None or item <= self.hi)
+
+    def __iter__(self) -> Iterator[Microarchitecture]:
+        # Sorting by the number of ancestors is a topological order, since an ancestor always
+        # has strictly fewer ancestors than its descendants. This yields a deterministic order,
+        # with the most generic microarchitectures first.
+        return iter(sorted(self._known_targets, key=lambda x: (len(x.ancestors), x.name)))
+
+    def __len__(self) -> int:
+        return len(self._known_targets)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, MicroarchitectureRange):
+            return NotImplemented
+        return self.lo == other.lo and self.hi == other.hi
+
+    def __hash__(self) -> int:
+        return hash((self.lo, self.hi))
+
+    def __le__(self, other: object) -> bool:
+        """True if every microarchitecture in this range is also in other."""
+        if not isinstance(other, MicroarchitectureRange):
+            return NotImplemented
+
+        # The empty range is a subset of any range, including itself
+        if self.lo is None:
+            return True
+
+        if other.lo is None or self.family != other.family:
+            return False
+
+        if not other.lo <= self.lo:
+            return False
+
+        if other.hi is None:
+            return True
+
+        return self.hi is not None and self.hi <= other.hi
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, MicroarchitectureRange):
+            return NotImplemented
+        return self <= other and self != other
+
+    def __ge__(self, other: object) -> bool:
+        if not isinstance(other, MicroarchitectureRange):
+            return NotImplemented
+        return other <= self
+
+    def __gt__(self, other: object) -> bool:
+        if not isinstance(other, MicroarchitectureRange):
+            return NotImplemented
+        return other < self
+
+    def __and__(self, other: "MicroarchitectureRange") -> "MicroarchitectureRange":
+        """Returns the intersection of two ranges.
+
+        Microarchitectures form a partial order that is not a lattice, so an intersection is
+        not always expressible as a range. For instance ``armv8.6a:`` and ``neoverse_n1:``
+        share both ``ampere1`` and ``ampere1a``, which are not comparable, so the result has no
+        unique lower boundary.
+
+        Raises:
+            ValueError: if the intersection has no unique lower or upper boundary
+        """
+        if not isinstance(other, MicroarchitectureRange):
+            return NotImplemented
+
+        # The intersection with the empty range, or of ranges from different families, is empty
+        if self.lo is None or other.lo is None or self.family != other.family:
+            return MicroarchitectureRange()
+
+        new_data = self._known_targets & other._known_targets
+        if not new_data:
+            return MicroarchitectureRange()
+
+        # An intersection of two ranges that has both a minimum and a maximum is exactly the
+        # range between them, so recovering the boundaries from the microarchitectures loses
+        # nothing. min() and max() find the true extremum of a partial order when one exists,
+        # since it compares smaller (greater) than every other element, and the checks below
+        # reject the cases where none exists.
+        new_lo = min(new_data)
+        if not all(new_lo <= x for x in new_data):
+            raise ValueError(
+                f"cannot intersect {self} and {other}, the lower boundary is ambiguous"
+            )
+
+        new_hi: Optional[Microarchitecture]
+        if self.hi is None:
+            new_hi = other.hi
+        elif other.hi is None:
+            new_hi = self.hi
+        else:
+            new_hi = max(new_data)
+            if not all(x <= new_hi for x in new_data):
+                raise ValueError(
+                    f"cannot intersect {self} and {other}, the upper boundary is ambiguous"
+                )
+
+        return MicroarchitectureRange(lo=new_lo, hi=new_hi)
+
+    @staticmethod
+    def from_string(range_str: str) -> "MicroarchitectureRange":
+        """Returns a microarchitecture range from its string representation.
+
+        The accepted formats are ``lo:hi``, ``lo:`` and ``:hi`` for bounded and unbounded
+        ranges, a bare ``name`` for a range holding a single microarchitecture, and ``{}`` or
+        ``:`` for the empty range.
+
+        Raises:
+            InvalidRange: if the string is not a valid range
+            ValueError: if a boundary is not a valid microarchitecture name
+        """
+        range_str = range_str.strip()
+        if range_str in ("{}", ":"):
+            return MicroarchitectureRange()
+
+        if ":" not in range_str:
+            uarch = Microarchitecture.from_string(range_str)
+            return MicroarchitectureRange(lo=uarch, hi=uarch)
+
+        parts = range_str.split(":")
+        if len(parts) != 2:
+            raise InvalidRange(f"'{range_str}' is not a valid microarchitecture range")
+
+        lo_str, hi_str = (x.strip() for x in parts)
+        return MicroarchitectureRange(
+            lo=Microarchitecture.from_string(lo_str) if lo_str else None,
+            hi=Microarchitecture.from_string(hi_str) if hi_str else None,
+        )
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}(lo={self.lo!r}, hi={self.hi!r})"
+
+    def __str__(self) -> str:
+        if self.lo is None:
+            return "{}"
+
+        if self.hi is None:
+            return f"{self.lo}:"
+
+        return f"{self.lo}:{self.hi}"
+
+
+def microarchitecture_range(
+    *, lo: Optional[str] = None, hi: Optional[str] = None
+) -> MicroarchitectureRange:
+    """Returns a microarchitecture range from its boundaries.
+
+    Raises:
+        ValueError: if the name is not a valid microarchitecture
+    """
+    lo_uarch = lo if lo is None else Microarchitecture.from_string(lo)
+    hi_uarch = hi if hi is None else Microarchitecture.from_string(hi)
+    return MicroarchitectureRange(lo=lo_uarch, hi=hi_uarch)
 
 
 def generic_microarchitecture(name: str) -> Microarchitecture:
@@ -429,3 +706,7 @@ class UnsupportedMicroarchitecture(ArchspecError, ValueError):
 
 class InvalidCompilerVersion(ArchspecError, ValueError):
     """Raised when an invalid format is used for compiler versions in archspec."""
+
+
+class InvalidRange(ArchspecError, ValueError):
+    """Raised when an invalid range is constructed."""

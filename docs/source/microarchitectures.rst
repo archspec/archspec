@@ -277,6 +277,136 @@ microarchitectures as DAGs permits to implement set comparison among them:
     >>> archspec.cpu.TARGETS['nehalem'] > archspec.cpu.TARGETS['a64fx']
     False
 
+.. _cpu_microarchitecture_ranges:
+
+------------------------------
+Ranges of microarchitectures
+------------------------------
+
+Since microarchitectures are ordered, a client can express a constraint like "``broadwell``
+or better, up to ``skylake``" as a range, instead of enumerating every microarchitecture that
+satisfies it. A ``MicroarchitectureRange`` holds every microarchitecture between a lower and an
+upper boundary, and can be built from a string:
+
+.. code-block:: python
+
+    >>> import archspec.cpu
+    >>> archspec.cpu.MicroarchitectureRange.from_string('broadwell:skylake')
+    MicroarchitectureRange(lo=Microarchitecture('broadwell'), hi=Microarchitecture('skylake'))
+
+Either boundary can be omitted. A missing upper boundary leaves the range open, so it also
+matches microarchitectures added to the :ref:`cpu_json_database` in the future, while a missing
+lower boundary is normalized to the family of the upper one:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.MicroarchitectureRange.from_string(':skylake'))
+    'x86_64:skylake'
+
+A bare name is the range holding that microarchitecture only, and ``{}`` is the empty range:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.MicroarchitectureRange.from_string('broadwell'))
+    'broadwell:broadwell'
+
+Ranges implement a "container" semantic over microarchitectures:
+
+.. code-block:: python
+
+    >>> uarch_range = archspec.cpu.microarchitecture_range(lo='broadwell', hi='skylake')
+    >>> 'broadwell' in uarch_range
+    True
+    >>> 'skylake' in uarch_range
+    True
+    >>> 'zen2' in uarch_range
+    False
+
+Note that ``haswell`` is *not* in the range above, since it is an ancestor of ``broadwell`` and
+therefore below the lower boundary. Because the boundaries follow the DAG rather than a release
+timeline, a range only ever holds microarchitectures on the paths between them:
+
+.. code-block:: python
+
+    >>> [str(x) for x in archspec.cpu.microarchitecture_range(lo='broadwell', hi='cascadelake')]
+    ['broadwell', 'skylake', 'skylake_avx512', 'cascadelake']
+
+Iteration is stable, and always yields the most generic microarchitectures first. ``cannonlake``
+is missing from that list even though it descends from ``skylake``, because it sits on the other
+side of a bifurcation and is not an ancestor of ``cascadelake``:
+
+.. code-block:: python
+
+    >>> 'cannonlake' in archspec.cpu.microarchitecture_range(lo='broadwell', hi='cascadelake')
+    False
+
+One range can be compared to another with set semantics, to check whether it is entirely
+contained in it:
+
+.. code-block:: python
+
+    >>> narrow = archspec.cpu.microarchitecture_range(lo='broadwell', hi='icelake')
+    >>> wide = archspec.cpu.microarchitecture_range(lo='x86_64_v2')
+    >>> narrow <= wide
+    True
+    >>> wide <= narrow
+    False
+
+Ranges are compared by their boundaries, and not by the microarchitectures they happen to hold
+today, so that comparisons stay stable as the JSON database grows. Two ranges can also be
+incomparable, since containment is a partial order.
+
+Finally, ranges can be intersected, which is how a client conjoins two constraints:
+
+.. code-block:: python
+
+    >>> r1 = archspec.cpu.microarchitecture_range(lo='skylake', hi='icelake')
+    >>> r2 = archspec.cpu.microarchitecture_range(lo='x86_64_v2', hi='cascadelake')
+    >>> str(r1 & r2)
+    'skylake:cascadelake'
+
+Intersecting ranges that cannot overlap, including ranges from different architecture families,
+gives the empty range:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.microarchitecture_range(lo='broadwell') & archspec.cpu.microarchitecture_range(lo='aarch64'))
+    '{}'
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Intersection is a partial operation
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Microarchitectures form a partial order, but **not a lattice**: two of them need not have a
+unique closest common ancestor or descendant. When that happens the intersection of two ranges
+is a perfectly well-defined *set* of microarchitectures that has no unique boundary, and so
+cannot be expressed as a range. ``archspec`` raises a ``ValueError`` rather than silently
+widening or narrowing the result:
+
+.. code-block:: python
+
+    >>> archspec.cpu.microarchitecture_range(hi='ampere1') & archspec.cpu.microarchitecture_range(hi='ampere1a')
+    Traceback (most recent call last):
+      File "<input>", line 1, in <module>
+    ValueError: cannot intersect aarch64:ampere1 and aarch64:ampere1a, the upper boundary is ambiguous
+
+Here ``ampere1`` and ``ampere1a`` both descend from ``armv8.6a`` and ``neoverse_n1``, which are
+not comparable to each other, so the microarchitectures below both of them have two maximal
+elements instead of one. The mirror case yields an ambiguous *lower* boundary:
+
+.. code-block:: python
+
+    >>> archspec.cpu.microarchitecture_range(lo='armv8.6a') & archspec.cpu.microarchitecture_range(lo='neoverse_n1')
+    Traceback (most recent call last):
+      File "<input>", line 1, in <module>
+    ValueError: cannot intersect armv8.6a: and neoverse_n1:, the lower boundary is ambiguous
+
+In the currently modeled data all such pairs are in the ``aarch64`` family, and come from the
+``ampere1``/``ampere1a`` pair and the ``neoverse`` chips each having two parents. The ``x86_64``
+family is a lattice, so intersections there always succeed. Note that a bifurcation on its own
+is not a problem: ``cascadelake`` and ``cannonlake`` are not comparable, but ``icelake``
+descends from both and ``skylake`` precedes both, so their boundaries stay unambiguous.
+
 -----------------------------
 Compiler's Optimization Flags
 -----------------------------

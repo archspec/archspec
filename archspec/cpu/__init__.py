@@ -9,9 +9,14 @@ from .detect import brand_string, host, why_not
 from .microarchitecture import (
     TARGETS,
     InvalidCompilerVersion,
+    InvalidRange,
     Microarchitecture,
+    MicroarchitectureRange,
     UnsupportedMicroarchitecture,
     generic_microarchitecture,
+    microarchitecture_max,
+    microarchitecture_min,
+    microarchitecture_range,
     version_components,
 )
 
@@ -21,8 +26,13 @@ __all__ = [
     "why_not",
     "TARGETS",
     "InvalidCompilerVersion",
+    "InvalidRange",
     "Microarchitecture",
+    "MicroarchitectureRange",
     "UnsupportedMicroarchitecture",
     "generic_microarchitecture",
+    "microarchitecture_max",
+    "microarchitecture_min",
+    "microarchitecture_range",
     "version_components",
 ]
