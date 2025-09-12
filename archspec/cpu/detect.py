@@ -214,7 +214,7 @@ WINDOWS_MAPPING = {
 }
 
 
-def _machine():
+def _machine() -> str:
     """Return the machine architecture we are on"""
     operating_system = platform.system()
 
@@ -339,7 +339,7 @@ def compatible_microarchitectures(info: Microarchitecture) -> List[Microarchitec
     ]
 
 
-def host():
+def host() -> Microarchitecture:
     """Detects the host micro-architecture and returns it."""
     # Retrieve information on the host's cpu
     info = detected_info()
@@ -378,7 +378,7 @@ def compatibility_check(architecture_family: Union[str, Tuple[str, ...]]):
 
     A compatibility check function takes a partial Microarchitecture object as a first argument,
     and an arbitrary target Microarchitecture as the second argument. It returns True if the
-    target is compatible with first argument, False otherwise.
+    target is compatible with the first argument, False otherwise.
 
     Args:
         architecture_family: architecture family for which this test can be used
@@ -397,8 +397,8 @@ def compatibility_check(architecture_family: Union[str, Tuple[str, ...]]):
 @compatibility_check(architecture_family=(PPC64LE, PPC64))
 def compatibility_check_for_power(info, target):
     """Compatibility check for PPC64 and PPC64LE architectures."""
-    # We can use a target if it descends from our machine type and our
-    # generation (9 for POWER9, etc) is at least its generation.
+    # We can use a target if it descends from our machine type, and our
+    # generation (9 for POWER9, etc.) is at least its generation.
     arch_root = TARGETS[_machine()]
     return (
         target == arch_root or arch_root in target.ancestors

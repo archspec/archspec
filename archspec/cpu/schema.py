@@ -100,8 +100,7 @@ def _load(json_file: pathlib.Path, extension_file: pathlib.Path):
     return data
 
 
-#: In memory representation of the data in microarchitectures.json,
-#: loaded on first access
+#: In memory representation of the data in microarchitectures.json, loaded on first access
 TARGETS_JSON = LazyDictionary(_load, *_json_file("microarchitectures.json", allow_custom=True))
 
 #: JSON schema for microarchitectures.json, loaded on first access
