@@ -107,7 +107,7 @@ def expected_target(request, monkeypatch):
 
 def targets_directory():
     test_dir = os.path.dirname(__file__)
-    target_dir = os.path.join(test_dir, "..", "archspec", "json", "tests", "targets")
+    target_dir = os.path.join(test_dir, "..", "..", "archspec", "json", "tests", "targets")
     return target_dir
 
 
