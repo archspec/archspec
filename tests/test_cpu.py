@@ -284,17 +284,10 @@ def test_partial_order_from_powerset_of_features():
     # If A is the set of CPU features, then the powerset P(A) is the set of all microarchitectures.
     # We define the usual partial order on P(A) as X <= Y if X is a subset of Y. Here we verify
     # that this partial order is respected by the microarchitectures.
-    fail = False
     for child in archspec.cpu.TARGETS.values():
         for parent in child.parents:
-            # parent <= child by definition
             assert parent <= child
-
-            # test <= has subset semantics on the set of features
-            if not parent.features.issubset(child.features):
-                print(f"{parent} <= {child} fails: {', '.join(parent.features - child.features)}")
-                fail = True
-    assert not fail, "Microarchitectures do not follow feature subset semantics"
+            assert parent.features.issubset(child.features)
 
 
 @pytest.mark.parametrize(
