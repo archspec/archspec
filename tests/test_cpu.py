@@ -143,8 +143,7 @@ def mock_check_output(filename):
             info[key.strip()] = value.strip()
 
     def _check_output(args, env):
-        current_key = args[-1]
-        return info[current_key]
+        return "\n".join(info[key] for key in args[1:] if not key.startswith("-"))
 
     return _check_output
 

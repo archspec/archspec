@@ -249,15 +249,16 @@ def sysctl_info() -> Microarchitecture:
     child_environment = _ensure_bin_usrbin_in_path()
 
     def sysctl(*args: str) -> str:
-        return _check_output(["sysctl"] + list(args), env=child_environment).strip()
+        return _check_output(["sysctl", *args], env=child_environment).strip()
 
     if _machine() == X86_64:
-        raw_features = (
-            f'{sysctl("-n", "machdep.cpu.features").lower()} '
-            f'{sysctl("-n", "machdep.cpu.leaf7_features").lower()} '
-            f'{sysctl("-n", "machdep.cpu.extfeatures").lower()}'
+        raw_features = sysctl(
+            "-n",
+            "machdep.cpu.features",
+            "machdep.cpu.leaf7_features",
+            "machdep.cpu.extfeatures",
         )
-        features = set(raw_features.split())
+        features = set(raw_features.lower().split())
 
         # Flags detected on Darwin turned to their linux counterpart
         for darwin_flags, linux_flags in TARGETS_JSON["conversions"]["darwin_flags"].items():
