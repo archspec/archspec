@@ -254,14 +254,15 @@ def sysctl_info() -> Microarchitecture:
     if _machine() == X86_64:
         raw_features = (
             f'{sysctl("-n", "machdep.cpu.features").lower()} '
-            f'{sysctl("-n", "machdep.cpu.leaf7_features").lower()}'
+            f'{sysctl("-n", "machdep.cpu.leaf7_features").lower()} '
+            f'{sysctl("-n", "machdep.cpu.extfeatures").lower()}'
         )
         features = set(raw_features.split())
 
         # Flags detected on Darwin turned to their linux counterpart
-        for darwin_flag, linux_flag in TARGETS_JSON["conversions"]["darwin_flags"].items():
-            if darwin_flag in features:
-                features.update(linux_flag.split())
+        for darwin_flags, linux_flags in TARGETS_JSON["conversions"]["darwin_flags"].items():
+            if all(x in features for x in darwin_flags.split()):
+                features.update(linux_flags.split())
 
         return partial_uarch(vendor=sysctl("-n", "machdep.cpu.vendor"), features=features)
 
