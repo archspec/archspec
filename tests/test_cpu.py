@@ -143,8 +143,7 @@ def mock_check_output(filename):
             info[key.strip()] = value.strip()
 
     def _check_output(args, env):
-        current_key = args[-1]
-        return info[current_key]
+        return "\n".join(info[key] for key in args[1:] if not key.startswith("-"))
 
     return _check_output
 
@@ -278,6 +277,16 @@ def test_partial_ordering(operation, expected_result):
     other_target = archspec.cpu.TARGETS[other_target]
     code = "target " + operator + "other_target"
     assert eval(code) is expected_result
+
+
+def test_partial_order_from_powerset_of_features():
+    # If A is the set of CPU features, then the powerset P(A) is the set of all microarchitectures.
+    # We define the usual partial order on P(A) as X <= Y if X is a subset of Y. Here we verify
+    # that this partial order is respected by the microarchitectures.
+    for child in archspec.cpu.TARGETS.values():
+        for parent in child.parents:
+            assert parent <= child
+            assert parent.features.issubset(child.features)
 
 
 @pytest.mark.parametrize(
