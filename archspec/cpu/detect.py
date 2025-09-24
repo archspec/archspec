@@ -269,7 +269,11 @@ def sysctl_info() -> Microarchitecture:
 
     model = "unknown"
     model_str = sysctl("-n", "machdep.cpu.brand_string").lower()
-    if "m2" in model_str:
+    if "m4" in model_str:
+        model = "m4"
+    elif "m3" in model_str:
+        model = "m3"
+    elif "m2" in model_str:
         model = "m2"
     elif "m1" in model_str:
         model = "m1"
