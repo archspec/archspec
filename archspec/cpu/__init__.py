@@ -12,6 +12,7 @@ from .microarchitecture import (
     Microarchitecture,
     UnsupportedMicroarchitecture,
     generic_microarchitecture,
+    microarchitecture_range,
     version_components,
 )
 
@@ -23,5 +24,6 @@ __all__ = [
     "Microarchitecture",
     "UnsupportedMicroarchitecture",
     "generic_microarchitecture",
+    "microarchitecture_range",
     "version_components",
 ]
