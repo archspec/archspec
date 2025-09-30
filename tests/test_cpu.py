@@ -64,6 +64,8 @@ from archspec.cpu import Microarchitecture
         "linux-rhel9-neoverse_n2",
         "linux-ubuntu22.04-neoverse_n2",
         "linux-rocky9-zen5",
+        "darwin-sequoia-m3",
+        "darwin-sequoia-m4",
     ]
 )
 def expected_target(request, monkeypatch):
