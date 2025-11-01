@@ -269,16 +269,10 @@ def sysctl_info() -> Microarchitecture:
 
     model = "unknown"
     model_str = sysctl("-n", "machdep.cpu.brand_string").lower()
-    if "m4" in model_str:
-        model = "m4"
-    elif "m3" in model_str:
-        model = "m3"
-    elif "m2" in model_str:
-        model = "m2"
-    elif "m1" in model_str:
-        model = "m1"
-    elif "apple" in model_str:
-        model = "m1"
+    # Example brand string: 'Apple M5'
+    match = re.search("m[1-5]", model_str)
+    if match is not None:
+        model = match.group(0)
 
     return partial_uarch(name=model, vendor="Apple")
 
