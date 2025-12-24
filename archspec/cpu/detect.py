@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """Detection of CPU microarchitectures"""
 import collections
+import functools
 import os
 import platform
 import re
@@ -344,6 +345,7 @@ def compatible_microarchitectures(info: Microarchitecture) -> List[Microarchitec
     ]
 
 
+@functools.lru_cache(maxsize=None)
 def host() -> Microarchitecture:
     """Detects the host micro-architecture and returns it."""
     # Retrieve information on the host's cpu
