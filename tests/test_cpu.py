@@ -66,6 +66,7 @@ from archspec.cpu import Microarchitecture
         "linux-rocky9-zen5",
         "darwin-sequoia-m3",
         "darwin-sequoia-m4",
+        "darwin-tahoe-m5",
     ]
 )
 def expected_target(request, monkeypatch):
@@ -120,6 +121,7 @@ def targets_directory():
         ("darwin-mojave-skylake", "Intel(R) Core(TM) i7-6700K CPU @ 4.00GHz"),
         ("darwin-monterey-m1", "Apple M1 Pro"),
         ("darwin-monterey-m2", "Apple M2"),
+        ("darwin-tahoe-m5", "Apple M5"),
         ("windows-cpuid-broadwell", "Intel(R) Core(TM) i7-5500U CPU @ 2.40GHz"),
         ("windows-cpuid-icelake", "11th Gen Intel(R) Core(TM) i7-1185G7 @ 3.00GHz"),
     ]
