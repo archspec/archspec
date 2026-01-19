@@ -17,6 +17,7 @@ import archspec.cpu.alias
 import archspec.cpu.detect
 import archspec.cpu.schema
 from archspec.cpu import Microarchitecture
+from archspec.cpu.microarchitecture import InvalidRange, MicroarchitectureRange
 
 
 @pytest.fixture(
@@ -562,3 +563,125 @@ def test_error_message_unknown_compiler_version(version_str):
 def test_targets_can_be_used_in_sets(names, expected_length):
     s = {archspec.cpu.TARGETS[name] for name in names}
     assert len(s) == expected_length
+
+
+class TestMicroarchitectureRanges:
+    @pytest.mark.parametrize(
+        "lo,hi",
+        [
+            # lo > hi
+            ("icelake", "broadwell"),
+            # Different families
+            ("x86_64", "neoverse_n1"),
+            # Not comparable
+            ("broadwell", "zen4"),
+        ],
+    )
+    def test_errors_in_construction(self, lo, hi):
+        """Tests the errors that could occur when constructing a MicroarchitectureRange."""
+        lo, hi = archspec.cpu.TARGETS[lo], archspec.cpu.TARGETS[hi]
+        with pytest.raises(InvalidRange, match="is not compatible with"):
+            MicroarchitectureRange(lo=lo, hi=hi)
+
+    @pytest.mark.parametrize(
+        "lo,hi,item,expected",
+        [
+            # The key is one of the boundaries
+            ("broadwell", "skylake", "broadwell", True),
+            ("broadwell", None, "broadwell", True),
+            ("broadwell", "skylake", "skylake", True),
+            (None, "skylake", "skylake", True),
+            # Key is in the middle of the boundary
+            ("x86_64_v2", "skylake", "broadwell", True),
+            ("x86_64_v2", None, "broadwell", True),
+            (None, "skylake", "broadwell", True),
+            # Key is not in the range
+            ("broadwell", "skylake", "bulldozer", False),
+            ("broadwell", None, "bulldozer", False),
+            (None, "skylake", "bulldozer", False),
+            # Bifurcations in the microarchitectures DAG
+            ("broadwell", "cascadelake", "cannonlake", False),
+            ("broadwell", "cannonlake", "cascadelake", False),
+        ],
+    )
+    def test_range_contains(self, lo, hi, item, expected):
+        """Tests the semantics of __contains__."""
+        uarch_range = archspec.cpu.microarchitecture_range(lo=lo, hi=hi)
+        assert (item in uarch_range) is expected
+        assert (Microarchitecture.from_string(item) in uarch_range) is expected
+
+    @pytest.mark.parametrize(
+        "r1_args,r2_args,intersection_args",
+        [
+            # Both lo and hi given and comparable
+            (
+                ("skylake", "icelake"),
+                ("x86_64_v2", "cascadelake"),
+                ("skylake", "cascadelake"),
+            ),
+            # Intersections when some open ranges are given
+            (
+                ("broadwell", None),
+                (None, "cascadelake"),
+                ("broadwell", "cascadelake"),
+            ),
+            # Same generic architectures, but different vendors
+            (
+                ("x86_64_v2", "icelake"),
+                (None, "zen2"),
+                ("x86_64_v2", "x86_64_v3"),
+            ),
+            # Open upper boundary
+            (
+                ("x86_64_v2", None),
+                ("x86_64_v3", None),
+                ("x86_64_v3", None),
+            ),
+            (
+                ("x86_64_v2", None),
+                ("zen4", None),
+                ("zen4", None),
+            ),
+        ],
+    )
+    def test_successful_range_intersection(self, r1_args, r2_args, intersection_args):
+        """Tests successful intersection and union of microarchitectures ranges."""
+        r1 = archspec.cpu.microarchitecture_range(lo=r1_args[0], hi=r1_args[1])
+        r2 = archspec.cpu.microarchitecture_range(lo=r2_args[0], hi=r2_args[1])
+
+        expected_intersection = archspec.cpu.microarchitecture_range(
+            lo=intersection_args[0], hi=intersection_args[1]
+        )
+        assert r1 & r2 == r2 & r1
+        assert r1 & r2 == expected_intersection
+
+    @pytest.mark.parametrize(
+        "lo,hi",
+        [
+            ("broadwell", "skylake"),
+            (None, "skylake"),
+            ("broadwell", None),
+        ],
+    )
+    def test_intersection_with_empty_range(self, lo, hi):
+        """Tests intersection of microarchitectures ranges with empty ranges."""
+        r = archspec.cpu.microarchitecture_range(lo=lo, hi=hi)
+        empty_range = archspec.cpu.microarchitecture_range(lo=None, hi=None)
+
+        assert r & empty_range == empty_range
+        assert empty_range & r == empty_range
+
+    @pytest.mark.parametrize(
+        "r1_args,r2_args",
+        [
+            (("broadwell", "icelake"), ("aarch64", None)),
+            (("broadwell", None), (None, "neoverse_n1")),
+            (("x86_64_v2", None), (None, "neoverse_n1")),
+        ],
+    )
+    def test_intersection_with_non_compatible_ranges(self, r1_args, r2_args):
+        """Tests intersection of microarchitectures ranges with non-compatible ranges."""
+        r1 = archspec.cpu.microarchitecture_range(lo=r1_args[0], hi=r1_args[1])
+        r2 = archspec.cpu.microarchitecture_range(lo=r2_args[0], hi=r2_args[1])
+        with pytest.raises(ValueError, match="cannot intersect"):
+            r1 & r2
