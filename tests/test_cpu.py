@@ -580,8 +580,12 @@ def test_tree_no_duplicate_nodes():
           root
     """
     root = Microarchitecture("root", parents=[], vendor="generic", features=set(), compilers={})
-    left = Microarchitecture("left", parents=[root], vendor="generic", features=set(), compilers={})
-    right = Microarchitecture("right", parents=[root], vendor="generic", features=set(), compilers={})
+    left = Microarchitecture(
+        "left", parents=[root], vendor="generic", features=set(), compilers={}
+    )
+    right = Microarchitecture(
+        "right", parents=[root], vendor="generic", features=set(), compilers={}
+    )
     diamond = Microarchitecture(
         "diamond", parents=[left, right], vendor="generic", features=set(), compilers={}
     )
