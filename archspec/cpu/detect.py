@@ -214,6 +214,7 @@ WINDOWS_MAPPING = {
 }
 
 
+@functools.lru_cache(maxsize=None)
 def _machine() -> str:
     """Return the machine architecture we are on"""
     operating_system = platform.system()
@@ -249,15 +250,37 @@ def sysctl_info() -> Microarchitecture:
     """Returns a raw info dictionary parsing the output of sysctl."""
     child_environment = _ensure_bin_usrbin_in_path()
 
-    def sysctl(*args: str) -> str:
-        return _check_output(["sysctl", *args], env=child_environment).strip()
-
-    if _machine() == X86_64:
-        raw_features = sysctl(
-            "-n",
+    # Gather all potentially necessary keys in a single sysctl call.
+    # sysctl outputs "key: value" lines; missing keys are ignored because of -i
+    raw = _check_output(
+        [
+            "sysctl",
+            "-i",
+            "machdep.cpu.brand_string",
+            # Intel Based MacOS
+            "machdep.cpu.vendor",
             "machdep.cpu.features",
             "machdep.cpu.leaf7_features",
             "machdep.cpu.extfeatures",
+        ],
+        env=child_environment,
+    )
+    data: Dict[str, str] = {}
+    for line in raw.splitlines():
+        key, sep, value = line.partition(": ")
+        if sep:
+            data[key.strip()] = value.strip()
+
+    brand_string = data.get("machdep.cpu.brand_string", "")
+
+    if "Apple" not in brand_string:
+        # x86_64 path
+        raw_features = " ".join(
+            [
+                data.get("machdep.cpu.features", ""),
+                data.get("machdep.cpu.leaf7_features", ""),
+                data.get("machdep.cpu.extfeatures", ""),
+            ]
         )
         features = set(raw_features.lower().split())
 
@@ -266,10 +289,11 @@ def sysctl_info() -> Microarchitecture:
             if all(x in features for x in darwin_flags.split()):
                 features.update(linux_flags.split())
 
-        return partial_uarch(vendor=sysctl("-n", "machdep.cpu.vendor"), features=features)
+        return partial_uarch(vendor=data.get("machdep.cpu.vendor", ""), features=features)
 
+    # Apple Silicon path
     model = "unknown"
-    model_str = sysctl("-n", "machdep.cpu.brand_string").lower()
+    model_str = brand_string.lower()
     if "m4" in model_str:
         model = "m4"
     elif "m3" in model_str:
