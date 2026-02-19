@@ -574,9 +574,9 @@ def test_tree_no_duplicate_nodes():
     Diamond structure used:
 
          diamond
-        /       \\
+        /       \
       left      right
-        \\       /
+        \       /
           root
     """
     root = Microarchitecture("root", parents=[], vendor="generic", features=set(), compilers={})
