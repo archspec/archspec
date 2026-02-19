@@ -286,36 +286,43 @@ def sysctl_info() -> Microarchitecture:
     cpu_brand = data.get(MACHDEP_CPU_BRAND_STRING, "")
 
     if "Apple" not in cpu_brand:
-        # x86_64 path
-        raw_features = " ".join(
-            [
-                data.get(MACHDEP_CPU_FEATURES, ""),
-                data.get(MACHDEP_CPU_LEAF7_FEATURES, ""),
-                data.get(MACHDEP_CPU_EXTFEATURES, ""),
-            ]
-        )
-        features = set(raw_features.lower().split())
+        return _sysctl_info_x86_64(data)
 
-        # Flags detected on Darwin turned to their linux counterpart
-        for darwin_flags, linux_flags in TARGETS_JSON["conversions"]["darwin_flags"].items():
-            if all(x in features for x in darwin_flags.split()):
-                features.update(linux_flags.split())
+    return _sysctl_info_apple(data)
 
-        return partial_uarch(vendor=data.get(MACHDEP_CPU_VENDOR, ""), features=features)
 
-    # Apple Silicon path
-    model = "unknown"
+def _sysctl_info_x86_64(data: Dict[str, str]) -> Microarchitecture:
+    """Returns a partial Microarchitecture for x86_64 on Darwin."""
+    raw_features = " ".join(
+        [
+            data.get(MACHDEP_CPU_FEATURES, ""),
+            data.get(MACHDEP_CPU_LEAF7_FEATURES, ""),
+            data.get(MACHDEP_CPU_EXTFEATURES, ""),
+        ]
+    )
+    features = set(raw_features.lower().split())
+
+    # Flags detected on Darwin turned to their linux counterpart
+    for darwin_flags, linux_flags in TARGETS_JSON["conversions"]["darwin_flags"].items():
+        if all(x in features for x in darwin_flags.split()):
+            features.update(linux_flags.split())
+
+    return partial_uarch(vendor=data.get(MACHDEP_CPU_VENDOR, ""), features=features)
+
+
+def _sysctl_info_apple(data: Dict[str, str]) -> Microarchitecture:
+    """Returns a partial Microarchitecture for Apple Silicon."""
+    cpu_brand = data.get(MACHDEP_CPU_BRAND_STRING, "")
     model_str = cpu_brand.lower()
-    if "m4" in model_str:
-        model = "m4"
-    elif "m3" in model_str:
-        model = "m3"
-    elif "m2" in model_str:
-        model = "m2"
-    elif "m1" in model_str:
-        model = "m1"
-    elif "apple" in model_str:
-        model = "m1"
+
+    # Default to m1 if "apple" is in brand string, but no specific M-series model is found
+    model = "m1" if "apple" in model_str else "unknown"
+
+    # Specific M-series detection
+    for m_series in ("m4", "m3", "m2", "m1"):
+        if m_series in model_str:
+            model = m_series
+            break
 
     return partial_uarch(name=model, vendor="Apple")
 
