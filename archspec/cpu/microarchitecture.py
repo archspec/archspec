@@ -163,20 +163,19 @@ class Microarchitecture:
     def __str__(self) -> str:
         return self.name
 
-    def tree(self, fp: IO[str] = sys.stdout, indent: int = 4) -> None:
+    def tree(self, fp: IO[str] = sys.stdout, indent: int = 2) -> None:
         """Format the partial order of this microarchitecture's ancestors as a tree."""
         seen: Set[str] = set()
         stack: List[Tuple[int, Microarchitecture]] = [(0, self)]
         while stack:
             level, current = stack.pop()
-            if current.name in seen:
-                continue
-
-            seen.add(current.name)
             print(f"{'':>{level}}{current.name}", file=fp)
 
             for parent in reversed(current.parents):
+                if parent.name in seen:
+                    continue
                 stack.append((level + indent, parent))
+                seen.add(parent.name)
 
     def __contains__(self, feature: str) -> bool:
         # Feature must be of a string type, so be defensive about that
