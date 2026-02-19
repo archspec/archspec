@@ -208,6 +208,32 @@ def _check_output(args, env):
     return str(output.decode("utf-8"))
 
 
+@functools.lru_cache(maxsize=None)
+def _darwin_sysctl_data() -> Dict[str, str]:
+    """Returns a dict of sysctl key/value pairs relevant for CPU detection on Darwin.
+
+    The ``-i`` flag silently ignores keys that do not exist (e.g. Intel keys on Apple Silicon).
+    """
+    raw = _check_output(
+        [
+            "sysctl",
+            "-i",
+            "machdep.cpu.brand_string",
+            "machdep.cpu.vendor",
+            "machdep.cpu.features",
+            "machdep.cpu.leaf7_features",
+            "machdep.cpu.extfeatures",
+        ],
+        env=_ensure_bin_usrbin_in_path(),
+    )
+    data: Dict[str, str] = {}
+    for line in raw.splitlines():
+        key, sep, value = line.partition(": ")
+        if sep:
+            data[key.strip()] = value.strip()
+    return data
+
+
 WINDOWS_MAPPING = {
     "AMD64": X86_64,
     "ARM64": AARCH64,
@@ -233,11 +259,9 @@ def _machine() -> str:
     # need to fix that.
     #
     # See: https://bugs.python.org/issue42704
-    output = _check_output(
-        ["sysctl", "-n", "machdep.cpu.brand_string"], env=_ensure_bin_usrbin_in_path()
-    ).strip()
+    brand = _darwin_sysctl_data().get("machdep.cpu.brand_string", "")
 
-    if "Apple" in output:
+    if "Apple" in brand:
         # Note that a native Python interpreter on Apple M1 would return
         # "arm64" instead of "aarch64". Here we normalize to the latter.
         return AARCH64
@@ -248,29 +272,7 @@ def _machine() -> str:
 @detection(operating_system="Darwin")
 def sysctl_info() -> Microarchitecture:
     """Returns a raw info dictionary parsing the output of sysctl."""
-    child_environment = _ensure_bin_usrbin_in_path()
-
-    # Gather all potentially necessary keys in a single sysctl call.
-    # sysctl outputs "key: value" lines; missing keys are ignored because of -i
-    raw = _check_output(
-        [
-            "sysctl",
-            "-i",
-            "machdep.cpu.brand_string",
-            # Intel Based MacOS
-            "machdep.cpu.vendor",
-            "machdep.cpu.features",
-            "machdep.cpu.leaf7_features",
-            "machdep.cpu.extfeatures",
-        ],
-        env=child_environment,
-    )
-    data: Dict[str, str] = {}
-    for line in raw.splitlines():
-        key, sep, value = line.partition(": ")
-        if sep:
-            data[key.strip()] = value.strip()
-
+    data = _darwin_sysctl_data()
     brand_string = data.get("machdep.cpu.brand_string", "")
 
     if "Apple" not in brand_string:
@@ -484,9 +486,7 @@ def compatibility_check_for_riscv64(info, target):
 def brand_string() -> Optional[str]:
     """Returns the brand string of the host, if detected, or None."""
     if platform.system() == "Darwin":
-        return _check_output(
-            ["sysctl", "-n", "machdep.cpu.brand_string"], env=_ensure_bin_usrbin_in_path()
-        ).strip()
+        return _darwin_sysctl_data().get("machdep.cpu.brand_string", "") or None
 
     if host().family == X86_64:
         return CpuidInfoCollector().brand_string()
