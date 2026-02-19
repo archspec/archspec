@@ -17,6 +17,16 @@ from ..vendor.cpuid.cpuid import CPUID
 from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture
 from .schema import CPUID_JSON, TARGETS_JSON
 
+
+# Constants for sysctl calls on macOS
+MACHDEP_CPU_BRAND_STRING = "machdep.cpu.brand_string"
+# Intel-based macOS
+MACHDEP_CPU_VENDOR = "machdep.cpu.vendor"
+MACHDEP_CPU_FEATURES = "machdep.cpu.features"
+MACHDEP_CPU_LEAF7_FEATURES = "machdep.cpu.leaf7_features"
+MACHDEP_CPU_EXTFEATURES = "machdep.cpu.extfeatures"
+
+
 #: Mapping from operating systems to chain of commands
 #: to obtain a dictionary of raw info on the current cpu
 INFO_FACTORY = collections.defaultdict(list)
@@ -218,11 +228,11 @@ def _darwin_sysctl_data() -> Dict[str, str]:
         [
             "sysctl",
             "-i",
-            "machdep.cpu.brand_string",
-            "machdep.cpu.vendor",
-            "machdep.cpu.features",
-            "machdep.cpu.leaf7_features",
-            "machdep.cpu.extfeatures",
+            MACHDEP_CPU_BRAND_STRING,
+            MACHDEP_CPU_VENDOR,
+            MACHDEP_CPU_FEATURES,
+            MACHDEP_CPU_LEAF7_FEATURES,
+            MACHDEP_CPU_EXTFEATURES,
         ],
         env=_ensure_bin_usrbin_in_path(),
     )
@@ -259,7 +269,7 @@ def _machine() -> str:
     # need to fix that.
     #
     # See: https://bugs.python.org/issue42704
-    brand = _darwin_sysctl_data().get("machdep.cpu.brand_string", "")
+    brand = _darwin_sysctl_data().get(MACHDEP_CPU_BRAND_STRING, "")
 
     if "Apple" in brand:
         # Note that a native Python interpreter on Apple M1 would return
@@ -273,15 +283,15 @@ def _machine() -> str:
 def sysctl_info() -> Microarchitecture:
     """Returns a raw info dictionary parsing the output of sysctl."""
     data = _darwin_sysctl_data()
-    cpu_brand = data.get("machdep.cpu.brand_string", "")
+    cpu_brand = data.get(MACHDEP_CPU_BRAND_STRING, "")
 
     if "Apple" not in cpu_brand:
         # x86_64 path
         raw_features = " ".join(
             [
-                data.get("machdep.cpu.features", ""),
-                data.get("machdep.cpu.leaf7_features", ""),
-                data.get("machdep.cpu.extfeatures", ""),
+                data.get(MACHDEP_CPU_FEATURES, ""),
+                data.get(MACHDEP_CPU_LEAF7_FEATURES, ""),
+                data.get(MACHDEP_CPU_EXTFEATURES, ""),
             ]
         )
         features = set(raw_features.lower().split())
@@ -291,7 +301,7 @@ def sysctl_info() -> Microarchitecture:
             if all(x in features for x in darwin_flags.split()):
                 features.update(linux_flags.split())
 
-        return partial_uarch(vendor=data.get("machdep.cpu.vendor", ""), features=features)
+        return partial_uarch(vendor=data.get(MACHDEP_CPU_VENDOR, ""), features=features)
 
     # Apple Silicon path
     model = "unknown"
@@ -486,7 +496,7 @@ def compatibility_check_for_riscv64(info, target):
 def brand_string() -> Optional[str]:
     """Returns the brand string of the host, if detected, or None."""
     if platform.system() == "Darwin":
-        return _darwin_sysctl_data().get("machdep.cpu.brand_string", "") or None
+        return _darwin_sysctl_data().get(MACHDEP_CPU_BRAND_STRING, "") or None
 
     if host().family == X86_64:
         return CpuidInfoCollector().brand_string()
