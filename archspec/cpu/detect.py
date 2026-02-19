@@ -17,7 +17,6 @@ from ..vendor.cpuid.cpuid import CPUID
 from .microarchitecture import TARGETS, Microarchitecture, generic_microarchitecture
 from .schema import CPUID_JSON, TARGETS_JSON
 
-
 # Constants for sysctl calls on macOS
 MACHDEP_CPU_BRAND_STRING = "machdep.cpu.brand_string"
 # Intel-based macOS
