@@ -273,9 +273,9 @@ def _machine() -> str:
 def sysctl_info() -> Microarchitecture:
     """Returns a raw info dictionary parsing the output of sysctl."""
     data = _darwin_sysctl_data()
-    brand_string = data.get("machdep.cpu.brand_string", "")
+    cpu_brand = data.get("machdep.cpu.brand_string", "")
 
-    if "Apple" not in brand_string:
+    if "Apple" not in cpu_brand:
         # x86_64 path
         raw_features = " ".join(
             [
@@ -295,7 +295,7 @@ def sysctl_info() -> Microarchitecture:
 
     # Apple Silicon path
     model = "unknown"
-    model_str = brand_string.lower()
+    model_str = cpu_brand.lower()
     if "m4" in model_str:
         model = "m4"
     elif "m3" in model_str:
