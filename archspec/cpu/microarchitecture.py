@@ -169,10 +169,11 @@ class Microarchitecture:
         stack: List[Tuple[int, Microarchitecture]] = [(0, self)]
         while stack:
             level, current = stack.pop()
-            print(f"{'':>{level}}{current.name}", file=fp)
-
             if current.name in seen:
                 continue
+
+            seen.add(current.name)
+            print(f"{'':>{level}}{current.name}", file=fp)
 
             for parent in reversed(current.parents):
                 stack.append((level + indent, parent))
