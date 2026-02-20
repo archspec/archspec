@@ -524,10 +524,12 @@ _WHY_NOT_MISSING_FEATURES = "{name} requires features not available on the host:
 _WHY_NOT_VENDOR_MISMATCH = (
     "{name} targets vendor {target_vendor}, but the host CPU vendor is {host_vendor}"
 )
-_WHY_NOT_INCOMPATIBLE = "{name} is not compatible with the detected host microarchitecture"
+_WHY_NOT_INCOMPATIBLE = "{name} is not compatible with the detected host microarchitecture {host}"
 
 
-def _why_not_x86_64(target: Microarchitecture, *, info: Microarchitecture) -> str:
+def _why_not_x86_64(
+    target: Microarchitecture, *, info: Microarchitecture, current_host: Microarchitecture
+) -> str:
     if target.vendor not in (info.vendor, "generic"):
         return _WHY_NOT_VENDOR_MISMATCH.format(
             name=target.name,
@@ -540,19 +542,23 @@ def _why_not_x86_64(target: Microarchitecture, *, info: Microarchitecture) -> st
             name=target.name,
             features=", ".join(sorted(missing)),
         )
-    return _WHY_NOT_INCOMPATIBLE.format(name=target.name)
+    return _WHY_NOT_INCOMPATIBLE.format(name=target.name, host=str(current_host))
 
 
-def _why_not_power(target: Microarchitecture, *, info: Microarchitecture) -> str:
+def _why_not_power(
+    target: Microarchitecture, *, info: Microarchitecture, current_host: Microarchitecture
+) -> str:
     if target.generation > info.generation:
         return (
             f"{target.name} requires POWER generation {target.generation}, "
             f"but the host is generation {info.generation}"
         )
-    return _WHY_NOT_INCOMPATIBLE.format(name=target.name)
+    return _WHY_NOT_INCOMPATIBLE.format(name=target.name, host=str(current_host))
 
 
-def _why_not_aarch64(target: Microarchitecture, *, info: Microarchitecture) -> str:
+def _why_not_aarch64(
+    target: Microarchitecture, *, info: Microarchitecture, current_host: Microarchitecture
+) -> str:
     if target.vendor not in (info.vendor, "generic"):
         return _WHY_NOT_VENDOR_MISMATCH.format(
             name=target.name,
@@ -566,33 +572,36 @@ def _why_not_aarch64(target: Microarchitecture, *, info: Microarchitecture) -> s
                 name=target.name,
                 features=", ".join(sorted(missing)),
             )
-    return _WHY_NOT_INCOMPATIBLE.format(name=target.name)
+    return _WHY_NOT_INCOMPATIBLE.format(name=target.name, host=str(current_host))
 
 
-def _why_not_riscv64(target: Microarchitecture, *, info: Microarchitecture) -> str:
+def _why_not_riscv64(
+    target: Microarchitecture, *, info: Microarchitecture, current_host: Microarchitecture
+) -> str:
     if target.name != info.name and target.vendor != "generic":
         return (
             f"{target.name} targets RISC-V microarchitecture {target.name!r}, "
             f"but the host is {info.name!r}"
         )
-    return _WHY_NOT_INCOMPATIBLE.format(name=target.name)
+    return _WHY_NOT_INCOMPATIBLE.format(name=target.name, host=str(current_host))
 
 
 def _why_not_for_arch(
     target: Microarchitecture,
     *,
     info: Microarchitecture,
-    architecture_family: str,
+    current_host: Microarchitecture,
 ) -> str:
-    if architecture_family == X86_64:
-        return _why_not_x86_64(target, info=info)
-    if architecture_family in (PPC64LE, PPC64):
-        return _why_not_power(target, info=info)
-    if architecture_family == AARCH64:
-        return _why_not_aarch64(target, info=info)
-    if architecture_family == RISCV64:
-        return _why_not_riscv64(target, info=info)
-    return _WHY_NOT_INCOMPATIBLE.format(name=target.name)
+    family = str(current_host.family)
+    if family == X86_64:
+        return _why_not_x86_64(target, info=info, current_host=current_host)
+    if family in (PPC64LE, PPC64):
+        return _why_not_power(target, info=info, current_host=current_host)
+    if family == AARCH64:
+        return _why_not_aarch64(target, info=info, current_host=current_host)
+    if family == RISCV64:
+        return _why_not_riscv64(target, info=info, current_host=current_host)
+    return _WHY_NOT_INCOMPATIBLE.format(name=target.name, host=str(current_host))
 
 
 def why_not(target_name: str) -> str:
@@ -626,4 +635,4 @@ def why_not(target_name: str) -> str:
             host_family=architecture_family,
         )
 
-    return _why_not_for_arch(target, info=detected_info(), architecture_family=architecture_family)
+    return _why_not_for_arch(target, info=detected_info(), current_host=current_host)

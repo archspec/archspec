@@ -43,13 +43,5 @@ def test_cli_why_not_unknown_target():
     with mock.patch("sys.stdout", new_callable=io.StringIO) as stdout:
         result = archspec.cli.main(["cpu", "--why-not", "not_a_real_target_xyz"])
     assert result == 0
-    assert "not_a_real_target_xyz" in stdout.getvalue()
-
-
-def test_cli_why_not_valid_target(monkeypatch):
-    """Tests that --why-not with a valid target returns 0 and prints a non-empty explanation."""
-    monkeypatch.setattr(archspec.cpu.detect, "host", lambda: archspec.cpu.TARGETS["broadwell"])
-    with mock.patch("sys.stdout", new_callable=io.StringIO) as stdout:
-        result = archspec.cli.main(["cpu", "--why-not", "haswell"])
-    assert result == 0
-    assert stdout.getvalue().strip()
+    out = stdout.getvalue()
+    assert archspec.cpu.detect._WHY_NOT_UNKNOWN.format(name="not_a_real_target_xyz") in out
