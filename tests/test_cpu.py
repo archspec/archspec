@@ -562,3 +562,39 @@ def test_error_message_unknown_compiler_version(version_str):
 def test_targets_can_be_used_in_sets(names, expected_length):
     s = {archspec.cpu.TARGETS[name] for name in names}
     assert len(s) == expected_length
+
+
+def test_tree_no_duplicate_nodes():
+    """In a DAG with shared ancestors (diamond pattern), each node must appear
+    exactly once in tree() output.
+
+    This test catches the bug where the ``seen`` set inside ``tree()`` is declared
+    but never updated, causing shared ancestors to be printed multiple times.
+
+    Diamond structure used:
+
+         diamond
+        /       \
+      left      right
+        \       /
+          root
+    """
+    root = Microarchitecture("root", parents=[], vendor="generic", features=set(), compilers={})
+    left = Microarchitecture(
+        "left", parents=[root], vendor="generic", features=set(), compilers={}
+    )
+    right = Microarchitecture(
+        "right", parents=[root], vendor="generic", features=set(), compilers={}
+    )
+    diamond = Microarchitecture(
+        "diamond", parents=[left, right], vendor="generic", features=set(), compilers={}
+    )
+
+    buf = StringIO()
+    diamond.tree(buf)
+    node_names = [line.strip() for line in buf.getvalue().splitlines()]
+
+    assert node_names.count("root") == 1, (
+        f"'root' appears {node_names.count('root')} time(s); "
+        "shared ancestors must appear exactly once in tree() output"
+    )
