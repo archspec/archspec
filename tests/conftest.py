@@ -49,5 +49,8 @@ def reset_global_state(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def clear_host_cache():
-    """Clears the cache for `archspec.cpu.host()` before each test."""
+    """Clears the cache for `archspec.cpu.host()`, `archspec.cpu.detect._machine()`, and
+    `archspec.cpu.detect._darwin_sysctl_data()` before each test."""
     archspec.cpu.detect.host.cache_clear()
+    archspec.cpu.detect._machine.cache_clear()
+    archspec.cpu.detect._darwin_sysctl_data.cache_clear()

@@ -141,11 +141,15 @@ def mock_check_output(filename):
     info = {}
     with open(filename) as f:
         for line in f:
-            key, value = line.split(":")
-            info[key.strip()] = value.strip()
+            key, sep, value = line.partition(":")
+            if sep:
+                info[key.strip()] = value.strip()
 
     def _check_output(args, env):
-        return "\n".join(info[key] for key in args[1:] if not key.startswith("-"))
+        keys = [k for k in args[1:] if not k.startswith("-")]
+        if "-n" in args:
+            return "\n".join(info.get(key, "") for key in keys)
+        return "\n".join(f"{key}: {info[key]}" for key in keys if key in info)
 
     return _check_output
 
