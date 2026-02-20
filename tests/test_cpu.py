@@ -602,3 +602,65 @@ def test_tree_no_duplicate_nodes():
         f"'root' appears {node_names.count('root')} time(s); "
         "shared ancestors must appear exactly once in tree() output"
     )
+
+
+def test_why_not_unknown_target():
+    """Tests that why_not returns exactly the expected message for an unknown target name."""
+    result = archspec.cpu.detect.why_not("not_a_real_target_xyz")
+    assert result == archspec.cpu.detect._WHY_NOT_UNKNOWN.format(name="not_a_real_target_xyz")
+
+
+def test_why_not_is_the_host(monkeypatch):
+    """Tests that why_not returns exactly the expected message when the queried target
+    is in fact the detected host.
+    """
+    monkeypatch.setattr(archspec.cpu.detect, "host", lambda: archspec.cpu.TARGETS["broadwell"])
+    result = archspec.cpu.detect.why_not("broadwell")
+    assert result == archspec.cpu.detect._WHY_NOT_IS_HOST.format(name="broadwell")
+
+
+def test_why_not_host_is_more_specific(monkeypatch):
+    """Tests that when the queried target is an ancestor of the host (target < host),
+    the explanation is exactly the expected message naming the more specific detected host.
+    """
+    # haswell is a parent of broadwell, so haswell < broadwell
+    monkeypatch.setattr(archspec.cpu.detect, "host", lambda: archspec.cpu.TARGETS["broadwell"])
+    result = archspec.cpu.detect.why_not("haswell")
+    assert result == archspec.cpu.detect._WHY_NOT_HOST_MORE_SPECIFIC.format(
+        name="haswell", host="broadwell"
+    )
+
+
+def test_why_not_missing_features(monkeypatch):
+    """Tests that for an x86_64 target that requires features the host lacks, the explanation
+    names the missing features.
+    """
+    # Simulate a host with only broadwell-level features (no avx512)
+    broadwell_info = archspec.cpu.detect.partial_uarch(
+        vendor="GenuineIntel",
+        features=set(archspec.cpu.TARGETS["broadwell"].features),
+    )
+    monkeypatch.setattr(archspec.cpu.detect, "host", lambda: archspec.cpu.TARGETS["broadwell"])
+    monkeypatch.setattr(archspec.cpu.detect, "detected_info", lambda: broadwell_info)
+    monkeypatch.setattr(archspec.cpu.detect, "_machine", lambda: "x86_64")
+
+    missing = archspec.cpu.TARGETS["skylake_avx512"].features - broadwell_info.features
+    result = archspec.cpu.detect.why_not("skylake_avx512")
+    assert result == archspec.cpu.detect._WHY_NOT_MISSING_FEATURES.format(
+        name="skylake_avx512", features=", ".join(sorted(missing))
+    )
+
+
+def test_why_not_wrong_family(monkeypatch):
+    """Tests that when the queried target belongs to a different architecture family,
+    the explanation mentions the family or architecture mismatch.
+    """
+    monkeypatch.setattr(archspec.cpu.detect, "host", lambda: archspec.cpu.TARGETS["broadwell"])
+    monkeypatch.setattr(archspec.cpu.detect, "_machine", lambda: "x86_64")
+
+    result = archspec.cpu.detect.why_not("power8")
+    assert result == archspec.cpu.detect._WHY_NOT_WRONG_FAMILY.format(
+        name="power8",
+        target_family=str(archspec.cpu.TARGETS["power8"].family),
+        host_family="x86_64",
+    )
