@@ -20,7 +20,7 @@ jobs:
           - windows-latest
 
     steps:
-    - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+    - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
       with:
         submodules: true
     - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
@@ -56,7 +56,7 @@ jobs:
     - name: Install git
       run: |
         dnf install -y git
-    - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+    - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
       with:
         submodules: true
     - name: Run tests using platform python (Python 3.6)
