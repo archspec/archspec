@@ -43,7 +43,7 @@ jobs:
         tox
         coverage xml
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         verbose: true
