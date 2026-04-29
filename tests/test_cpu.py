@@ -560,6 +560,7 @@ def test_sysctl_info_apple(brand_string, expected_name):
         archspec.cpu.detect.MACHDEP_CPU_BRAND_STRING: brand_string
     })
     assert uarch.name == expected_name
+    assert uarch.vendor == "Apple"
 
 @pytest.mark.parametrize(
     "version_str",
