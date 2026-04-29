@@ -20,10 +20,10 @@ jobs:
           - windows-latest
 
     steps:
-    - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+    - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
       with:
         submodules: true
-    - uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
+    - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405
       with:
         python-version: |
           3.8
@@ -43,7 +43,7 @@ jobs:
         tox
         coverage xml
     - name: Upload to codecov.io
-      uses: codecov/codecov-action@671740ac38dd9b0130fbe1cec585b89eea48d3de
+      uses: codecov/codecov-action@57e3a136b779b570ffcdbf80b3bdc90e7fab3de2
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         verbose: true
@@ -56,7 +56,7 @@ jobs:
     - name: Install git
       run: |
         dnf install -y git
-    - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+    - uses: actions/checkout@0c366fd6a839edf440554fa01a7085ccba70ac98
       with:
         submodules: true
     - name: Run tests using platform python (Python 3.6)
