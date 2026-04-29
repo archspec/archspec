@@ -319,11 +319,15 @@ def _sysctl_info_apple(data: Dict[str, str]) -> Microarchitecture:
     if match is not None:
         # Found an M series: count down until we find a target we know about
         for mnum in range(int(match.group(1)), 0, -1):
-            model = f"m{mnum}" 
+            model = f"m{mnum}"
             if model in TARGETS:
                 break
+        else:
+            assert False, "No Apple M series in TARGETS"
+    elif model_str == "apple processor":
+        # Very old OS or processor: see json/tests/targets/darwin-bigsur-m1
+        model = "m1"
     else:
-        # Not an Apple M series
         model = "unknown"
 
     return partial_uarch(name=model, vendor="Apple")
