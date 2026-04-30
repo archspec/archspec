@@ -66,6 +66,7 @@ from archspec.cpu import Microarchitecture
         "linux-rocky9-zen5",
         "darwin-sequoia-m3",
         "darwin-sequoia-m4",
+        "linux-spacemit-x60",
     ]
 )
 def expected_target(request, monkeypatch):
