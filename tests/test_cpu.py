@@ -125,10 +125,6 @@ def targets_directory():
     ]
 )
 def expected_brand_string(request, monkeypatch):
-    """
-    Compare the brand string based on stored platform output in
-    :file:`archspec/json/test/targets/{filename}`.
-    """
     test_file, expected_result = request.param
     filename = os.path.join(targets_directory(), test_file)
     if "darwin" in test_file:
@@ -553,14 +549,15 @@ def test_brand_string(expected_brand_string):
         ("Apple M4", "m4"),
         # NOTE: this must be updated when jsonschema adds M5 and newer
         ("Apple M2000", "m4"),
-    ]
+    ],
 )
 def test_sysctl_info_apple(brand_string, expected_name):
-    uarch = archspec.cpu.detect._sysctl_info_apple({
-        archspec.cpu.detect.MACHDEP_CPU_BRAND_STRING: brand_string
-    })
+    uarch = archspec.cpu.detect._sysctl_info_apple(
+        {archspec.cpu.detect.MACHDEP_CPU_BRAND_STRING: brand_string}
+    )
     assert uarch.name == expected_name
     assert uarch.vendor == "Apple"
+
 
 @pytest.mark.parametrize(
     "version_str",
