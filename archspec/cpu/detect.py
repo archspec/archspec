@@ -125,7 +125,7 @@ def proc_cpuinfo() -> Microarchitecture:
     if architecture == RISCV64:
         if data.get("uarch") == "sifive,u74-mc":
             data["uarch"] = "u74mc"
-        elif data.get("uarch") == "spacemit,x60":
+        elif data.get("uarch") == "spacemit,x60" or data.get("model name") == "Spacemit(R) X60":
             data["uarch"] = "x60"
         return partial_uarch(name=data.get("uarch", RISCV64))
 
