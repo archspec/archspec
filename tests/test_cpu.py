@@ -68,6 +68,8 @@ from archspec.cpu import Microarchitecture
         "darwin-sequoia-m4",
         "linux-spacemit-x60",
         "linux-debian13-x60",
+        "linux-ubuntu22.04-ampere1",
+        "linux-ubuntu22.04-ampere1a",
     ]
 )
 def expected_target(request, monkeypatch):
