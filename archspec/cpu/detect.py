@@ -314,21 +314,20 @@ def _sysctl_info_apple(data: Dict[str, str]) -> Microarchitecture:
     cpu_brand = data.get(MACHDEP_CPU_BRAND_STRING, "")
     model_str = cpu_brand.lower()
 
+    # Default to generic ARM model
+    model = "aarch64"
+
     # Example brand string: 'Apple M5', 'Apple M1 Pro'
     match = re.search(r"apple\s+m(\d+)", model_str)
     if match is not None:
-        # Found an M series: count down until we find a target we know about
+        # Found an M series: count down until we find a target in the jsonspec
         for mnum in range(int(match.group(1)), 0, -1):
             model = f"m{mnum}"
             if model in TARGETS:
                 break
-        else:
-            assert False, "No Apple M series in TARGETS"
     elif model_str == "apple processor":
         # Very old OS or processor: see json/tests/targets/darwin-bigsur-m1
         model = "m1"
-    else:
-        model = "unknown"
 
     return partial_uarch(name=model, vendor="Apple")
 
