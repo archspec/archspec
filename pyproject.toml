@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "archspec"
-version = "0.2.5"
+version = "0.2.6"
 description = "A library to query system architecture"
 license = "Apache-2.0 OR MIT"
 authors = ["archspec developers <maintainers@spack.io>"]
@@ -29,6 +29,8 @@ include = [
 exclude = [
     "archspec/json/.git",
     "archspec/json/.github",
+    "archspec/vendor/cpuid/.git",
+    "archspec/vendor/cpuid/.gitignore",
 ]
 
 [tool.poetry.dependencies]
