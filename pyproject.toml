@@ -29,6 +29,8 @@ include = [
 exclude = [
     "archspec/json/.git",
     "archspec/json/.github",
+    "archspec/vendor/cpuid/.git",
+    "archspec/vendor/cpuid/.gitignore",
 ]
 
 [tool.poetry.dependencies]
