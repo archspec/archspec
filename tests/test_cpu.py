@@ -70,6 +70,8 @@ from archspec.cpu import Microarchitecture
         "linux-debian13-x60",
         "linux-ubuntu22.04-ampere1",
         "linux-ubuntu22.04-ampere1a",
+        "linux-ubuntu24.04-alderlake",
+        "linux-ubuntu26.04-arrowlake_s",
     ]
 )
 def expected_target(request, monkeypatch):
