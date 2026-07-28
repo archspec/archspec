@@ -7,7 +7,10 @@ import subprocess
 
 import pytest
 
+import archspec.gpu.amd
 import archspec.gpu.detect
+import archspec.gpu.generic
+import archspec.gpu.nvidia
 
 
 def make_pci_devices(root, devices):
@@ -71,9 +74,9 @@ def mock_which(*installed):
 def test_sysfs_scan_detects_vendors(tmp_path, monkeypatch, devices, expected):
     """Test that the sysfs PCI scan reports exactly the GPU vendors present."""
     make_pci_devices(tmp_path, devices)
-    monkeypatch.setattr(archspec.gpu.detect, "SYSFS_PCI_DEVICES", str(tmp_path))
+    monkeypatch.setattr(archspec.gpu.generic, "SYSFS_PCI_DEVICES", str(tmp_path))
 
-    assert {g.vendor for g in archspec.gpu.detect._scan_sysfs_pci_for_gpus()} == expected
+    assert {g.vendor for g in archspec.gpu.generic.scan_sysfs_pci_for_gpus()} == expected
 
 
 def test_detect_amd_instinct_accelerator(tmp_path, monkeypatch):
@@ -83,9 +86,9 @@ def test_detect_amd_instinct_accelerator(tmp_path, monkeypatch):
     (device_dir / "class").write_text("0x120000")
     (device_dir / "vendor").write_text("0x1002")
     (device_dir / "device").write_text("0x74a0")
-    monkeypatch.setattr(archspec.gpu.detect, "SYSFS_PCI_DEVICES", str(tmp_path))
+    monkeypatch.setattr(archspec.gpu.generic, "SYSFS_PCI_DEVICES", str(tmp_path))
 
-    gpus = archspec.gpu.detect._scan_sysfs_pci_for_gpus()
+    gpus = archspec.gpu.generic.scan_sysfs_pci_for_gpus()
     assert {g.vendor for g in gpus} == {"amd"}
     assert gpus[0].component_pci_code == "0x74a0"
 
@@ -102,14 +105,14 @@ def test_detect_amd_instinct_accelerator(tmp_path, monkeypatch):
 )
 def test_nvidia_pci_device_id_parsing(combined, expected):
     """Test that a combined PCI device ID splits into lowercase (device, vendor) codes."""
-    assert archspec.gpu.detect._parse_nvidia_pci_device_id(combined) == expected
+    assert archspec.gpu.nvidia._parse_pci_device_id(combined) == expected
 
 
 @pytest.mark.parametrize("bad_id", ["0x2C0210", "2C0210DE00", "0xZZZZ10DE0"])
 def test_nvidia_pci_device_id_invalid(bad_id):
     """Test that a malformed PCI device ID raises ValueError."""
     with pytest.raises(ValueError):
-        archspec.gpu.detect._parse_nvidia_pci_device_id(bad_id)
+        archspec.gpu.nvidia._parse_pci_device_id(bad_id)
 
 
 @pytest.mark.parametrize(
@@ -127,18 +130,18 @@ def test_nvidia_pci_device_id_invalid(bad_id):
 )
 def test_compute_capability_to_compiler_flag(compute_cap, expected):
     """Test conversion of decimal compute capability to the sm_XX compiler-flag form."""
-    assert archspec.gpu.detect._compute_capability_to_compiler_flag(compute_cap) == expected
+    assert archspec.gpu.nvidia._compute_capability_to_compiler_flag(compute_cap) == expected
 
 
 def test_nvidia_smi_info_parses_smi_output(monkeypatch):
-    """Test that _nvidia_smi_info parses nvidia-smi CSV output into GPUMicroarch objects."""
+    """Test that nvidia.smi_info parses nvidia-smi CSV output into GPUMicroarch objects."""
     nvidia_smi_csv = (
         "NVIDIA GeForce RTX 5080, 595.58.03, 0x2C0210DE, 12.0\n"
         "NVIDIA H100 PCIe, 550.54.15, 0x233010DE, 9.0\n"
     )
-    monkeypatch.setattr(archspec.gpu.detect.subprocess, "run", mock_smi(nvidia_smi_csv))
+    monkeypatch.setattr(archspec.gpu.nvidia.subprocess, "run", mock_smi(nvidia_smi_csv))
 
-    gpus = archspec.gpu.detect._nvidia_smi_info()
+    gpus = archspec.gpu.nvidia.smi_info()
 
     assert len(gpus) == 2
     assert all(gpu.vendor == "nvidia" for gpu in gpus)
@@ -161,7 +164,7 @@ def test_nvidia_smi_info_parses_smi_output(monkeypatch):
 
 
 def test_rocm_smi_info_parses_rocm_smi_json(monkeypatch):
-    """Test that _rocm_smi_info parses rocm-smi --json output into GPUMicroarch objects."""
+    """Test that amd.smi_info parses rocm-smi --json output into GPUMicroarch objects."""
     rocm_smi_json = json.dumps(
         {
             "card0": {"Card Series": "AMD Radeon RX 6800 XT", "Device ID": "0x73BF"},
@@ -169,9 +172,9 @@ def test_rocm_smi_info_parses_rocm_smi_json(monkeypatch):
             "system": {"Driver version": "6.7.0"},
         }
     )
-    monkeypatch.setattr(archspec.gpu.detect.subprocess, "run", mock_smi(rocm_smi_json))
+    monkeypatch.setattr(archspec.gpu.amd.subprocess, "run", mock_smi(rocm_smi_json))
 
-    gpus = archspec.gpu.detect._rocm_smi_info()
+    gpus = archspec.gpu.amd.smi_info()
 
     assert len(gpus) == 2
     assert all(gpu.vendor == "amd" for gpu in gpus)
@@ -186,7 +189,7 @@ def test_rocm_smi_info_parses_rocm_smi_json(monkeypatch):
 
 
 def test_rocm_smi_info_parses_real_mi300a_output(monkeypatch):
-    """Test _rocm_smi_info against real rocm-smi output from a 4x MI300A machine."""
+    """Test amd.smi_info against real rocm-smi output from a 4x MI300A machine."""
     rocm_smi_json = (
         '{"card0": {"Device Name": "AMD Instinct MI300A", "Device ID": "0x74a0", '
         '"Device Rev": "0x00", "Subsystem ID": "0x74a0", "GUID": "46363", '
@@ -210,9 +213,9 @@ def test_rocm_smi_info_parses_real_mi300a_output(monkeypatch):
         '"Node ID": "7", "GFX Version": "gfx942"}, '
         '"system": {"Driver version": "6.16.13"}}'
     )
-    monkeypatch.setattr(archspec.gpu.detect.subprocess, "run", mock_smi(rocm_smi_json))
+    monkeypatch.setattr(archspec.gpu.amd.subprocess, "run", mock_smi(rocm_smi_json))
 
-    gpus = archspec.gpu.detect._rocm_smi_info()
+    gpus = archspec.gpu.amd.smi_info()
 
     assert len(gpus) == 4
     for gpu in gpus:
@@ -226,10 +229,10 @@ def test_rocm_smi_info_parses_real_mi300a_output(monkeypatch):
 
 
 def test_rocm_smi_info_handles_malformed_json(monkeypatch):
-    """Test that _rocm_smi_info returns no GPUs when rocm-smi emits unparseable output."""
-    monkeypatch.setattr(archspec.gpu.detect.subprocess, "run", mock_smi("not json"))
+    """Test that amd.smi_info returns no GPUs when rocm-smi emits unparseable output."""
+    monkeypatch.setattr(archspec.gpu.amd.subprocess, "run", mock_smi("not json"))
 
-    assert archspec.gpu.detect._rocm_smi_info() == []
+    assert archspec.gpu.amd.smi_info() == []
 
 
 # --- Pipeline: host() merges SMI and sysfs sources ---
@@ -237,11 +240,11 @@ def test_rocm_smi_info_handles_malformed_json(monkeypatch):
 
 def test_host_detects_gpu_visible_only_to_smi(tmp_path, monkeypatch):
     """WSL case: a GPU absent from sysfs is still detected via an installed SMI tool."""
-    monkeypatch.setattr(archspec.gpu.detect, "SYSFS_PCI_DEVICES", str(tmp_path))
+    monkeypatch.setattr(archspec.gpu.generic, "SYSFS_PCI_DEVICES", str(tmp_path))
     monkeypatch.setattr(archspec.gpu.detect.platform, "system", lambda: "Linux")
     monkeypatch.setattr(archspec.gpu.detect.shutil, "which", mock_which("nvidia-smi"))
     monkeypatch.setattr(
-        archspec.gpu.detect.subprocess,
+        archspec.gpu.nvidia.subprocess,
         "run",
         mock_smi("NVIDIA GeForce RTX 5080, 595.58.03, 0x2C0210DE\n"),
     )
@@ -261,11 +264,11 @@ def test_host_keeps_sysfs_gpu_no_smi_describes(tmp_path, monkeypatch):
         tmp_path,
         [("0x030000", "0x10de", "0x2c02"), ("0x030000", "0x1002", "0x164e")],
     )
-    monkeypatch.setattr(archspec.gpu.detect, "SYSFS_PCI_DEVICES", str(tmp_path))
+    monkeypatch.setattr(archspec.gpu.generic, "SYSFS_PCI_DEVICES", str(tmp_path))
     monkeypatch.setattr(archspec.gpu.detect.platform, "system", lambda: "Linux")
     monkeypatch.setattr(archspec.gpu.detect.shutil, "which", mock_which("nvidia-smi"))
     monkeypatch.setattr(
-        archspec.gpu.detect.subprocess,
+        archspec.gpu.nvidia.subprocess,
         "run",
         mock_smi("NVIDIA GeForce RTX 5080, 595.58.03, 0x2C0210DE\n"),
     )
@@ -287,11 +290,11 @@ def test_host_does_not_collapse_identical_gpus(tmp_path, monkeypatch):
         tmp_path,
         [("0x030000", "0x10de", "0x2330"), ("0x030000", "0x10de", "0x2330")],
     )
-    monkeypatch.setattr(archspec.gpu.detect, "SYSFS_PCI_DEVICES", str(tmp_path))
+    monkeypatch.setattr(archspec.gpu.generic, "SYSFS_PCI_DEVICES", str(tmp_path))
     monkeypatch.setattr(archspec.gpu.detect.platform, "system", lambda: "Linux")
     monkeypatch.setattr(archspec.gpu.detect.shutil, "which", mock_which("nvidia-smi"))
     monkeypatch.setattr(
-        archspec.gpu.detect.subprocess,
+        archspec.gpu.nvidia.subprocess,
         "run",
         mock_smi("NVIDIA H100, 550.54.15, 0x233010DE\nNVIDIA H100, 550.54.15, 0x233010DE\n"),
     )

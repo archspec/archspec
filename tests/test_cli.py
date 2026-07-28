@@ -13,7 +13,9 @@ import archspec.cpu
 import archspec.cpu.detect
 
 
-@pytest.mark.parametrize("cli_args", [("--help",), ("cpu", "--help"), ("cpu",)])
+@pytest.mark.parametrize(
+    "cli_args", [("--help",), ("cpu", "--help"), ("cpu",), ("gpu", "--help"), ("gpu",)]
+)
 def test_command_run_without_failure(cli_args):
     result = archspec.cli.main(cli_args)
     assert result == 0
