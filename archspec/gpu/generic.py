@@ -8,7 +8,7 @@ import os
 import warnings
 from typing import List
 
-from archspec.gpu.gpu_microarch import GPUMicroarch
+from .gpu_microarch import GPUMicroarch
 
 #: PCI class codes for GPU devices
 #: https://admin.pci-ids.ucw.cz/read/PD/03

@@ -9,8 +9,8 @@ import subprocess
 import warnings
 from typing import List
 
-from archspec.gpu.generic import GPU_VENDORS
-from archspec.gpu.gpu_microarch import GPUMicroarch
+from .generic import GPU_VENDORS
+from .gpu_microarch import GPUMicroarch
 
 
 def smi_info() -> List[GPUMicroarch]:

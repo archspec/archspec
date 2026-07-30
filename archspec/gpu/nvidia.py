@@ -8,7 +8,7 @@ import subprocess
 import warnings
 from typing import List, Tuple
 
-from archspec.gpu.gpu_microarch import GPUMicroarch
+from .gpu_microarch import GPUMicroarch
 
 #: Fields queried from nvidia-smi, in output-column order. ``compute_cap`` is
 #: only recognized on newer drivers (~R495+); on older drivers it is dropped

@@ -11,8 +11,8 @@ import shutil
 import warnings
 from typing import Callable, Dict, List, Tuple
 
-from archspec.gpu import amd, generic, nvidia
-from archspec.gpu.gpu_microarch import GPUMicroarch
+from . import amd, generic, nvidia
+from .gpu_microarch import GPUMicroarch
 
 #: Mapping from operating systems to chain of commands
 #: to obtain a list of raw info on the current gpus
