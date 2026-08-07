@@ -8,7 +8,19 @@ import platform
 import re
 import sys
 import warnings
-from typing import IO, Any, Dict, FrozenSet, Iterator, List, Optional, Set, Tuple, Union
+from typing import (
+    IO,
+    Any,
+    Dict,
+    FrozenSet,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Set,
+    Tuple,
+    Union,
+)
 
 from . import schema
 from .alias import FEATURE_ALIASES
@@ -25,7 +37,7 @@ def coerce_target_names(func):
         if isinstance(other, str):
             if other not in TARGETS:
                 msg = '"{0}" is not a valid target name'
-                raise ValueError(msg.format(other))
+                raise UnknownMicroarchitecture(msg.format(other))
             other = TARGETS[other]
 
         return func(self, other)
@@ -242,10 +254,10 @@ class Microarchitecture:
         """Returns a micro-architecture from its name.
 
         Raises:
-            ValueError: if the name is not a valid microarchitecture
+            UnknownMicroarchitecture: if the name is not a valid microarchitecture
         """
         if name not in TARGETS:
-            raise ValueError(f"unknown micro-architecture '{name}'")
+            raise UnknownMicroarchitecture(f"unknown micro-architecture '{name}'")
         return TARGETS[name]
 
     def optimization_flags(self, compiler: str, version: str) -> str:
@@ -344,36 +356,6 @@ class Microarchitecture:
         raise UnsupportedMicroarchitecture(msg)
 
 
-def microarchitecture_min(m1: Microarchitecture, m2: Microarchitecture) -> Microarchitecture:
-    """Returns the most generic micro-architecture, if arguments are comparable
-
-    Raises:
-        ValueError: if arguments are not comparable
-    """
-    if m1 <= m2:
-        return m1
-
-    if m2 <= m1:
-        return m2
-
-    raise ValueError(f"{m1} and {m2} are not comparable")
-
-
-def microarchitecture_max(m1: Microarchitecture, m2: Microarchitecture) -> Microarchitecture:
-    """Returns the most specific micro-architecture, if arguments are comparable
-
-    Raises:
-        ValueError: if arguments are not comparable
-    """
-    if m1 <= m2:
-        return m2
-
-    if m2 <= m1:
-        return m1
-
-    raise ValueError(f"{m1} and {m2} are not comparable")
-
-
 class MicroarchitectureRange:
     """A range of micro-architectures"""
 
@@ -395,9 +377,10 @@ class MicroarchitectureRange:
         data: ``mic_knl:`` and ``mic_knl:mic_knl`` are different ranges, even though today
         ``mic_knl`` has no descendant and both enumerate the same single microarchitecture.
 
-        Intersection is supported between ranges only if it doesn't result in ambiguous upper or
-        lower boundaries. This can happen because microarchitectures form a partial order that is
-        not a lattice, see ``__and__`` for details.
+        A range is closed under neither union nor intersection, since microarchitectures form a
+        partial order that is not a lattice: two ranges can overlap, or sit side by side, without
+        the result having a unique boundary. Both operations therefore live on
+        ``MicroarchitectureRangeList``, where they are total.
 
         Args:
             lo: The lower boundary of the microarchitecture range.
@@ -434,6 +417,19 @@ class MicroarchitectureRange:
         if self.lo is None:
             return None
         return self.lo.family
+
+    @property
+    def concrete(self) -> Optional[Microarchitecture]:
+        """The single microarchitecture this range denotes, or None if it denotes more than one.
+
+        A range is concrete when both boundaries are the same microarchitecture, which is what
+        ``from_string`` builds for a bare name. Note that this is a property of the boundaries,
+        not of the microarchitectures known today: ``mic_knl:`` is not concrete even though
+        ``mic_knl`` currently has no descendant, because a future descendant would fall in it.
+        """
+        if self.lo is None or self.lo != self.hi:
+            return None
+        return self.lo
 
     @property
     def _known_targets(self) -> FrozenSet[Microarchitecture]:
@@ -507,53 +503,6 @@ class MicroarchitectureRange:
             return NotImplemented
         return other < self
 
-    def __and__(self, other: "MicroarchitectureRange") -> "MicroarchitectureRange":
-        """Returns the intersection of two ranges.
-
-        Microarchitectures form a partial order that is not a lattice, so an intersection is
-        not always expressible as a range. For instance ``armv8.6a:`` and ``neoverse_n1:``
-        share both ``ampere1`` and ``ampere1a``, which are not comparable, so the result has no
-        unique lower boundary.
-
-        Raises:
-            ValueError: if the intersection has no unique lower or upper boundary
-        """
-        if not isinstance(other, MicroarchitectureRange):
-            return NotImplemented
-
-        # The intersection with the empty range, or of ranges from different families, is empty
-        if self.lo is None or other.lo is None or self.family != other.family:
-            return MicroarchitectureRange()
-
-        new_data = self._known_targets & other._known_targets
-        if not new_data:
-            return MicroarchitectureRange()
-
-        # An intersection of two ranges that has both a minimum and a maximum is exactly the
-        # range between them, so recovering the boundaries from the microarchitectures loses
-        # nothing. min() and max() find the true extremum of a partial order when one exists,
-        # since it compares smaller (greater) than every other element, and the checks below
-        # reject the cases where none exists.
-        new_lo = min(new_data)
-        if not all(new_lo <= x for x in new_data):
-            raise ValueError(
-                f"cannot intersect {self} and {other}, the lower boundary is ambiguous"
-            )
-
-        new_hi: Optional[Microarchitecture]
-        if self.hi is None:
-            new_hi = other.hi
-        elif other.hi is None:
-            new_hi = self.hi
-        else:
-            new_hi = max(new_data)
-            if not all(x <= new_hi for x in new_data):
-                raise ValueError(
-                    f"cannot intersect {self} and {other}, the upper boundary is ambiguous"
-                )
-
-        return MicroarchitectureRange(lo=new_lo, hi=new_hi)
-
     @staticmethod
     def from_string(range_str: str) -> "MicroarchitectureRange":
         """Returns a microarchitecture range from its string representation.
@@ -594,6 +543,12 @@ class MicroarchitectureRange:
         if self.hi is None:
             return f"{self.lo}:"
 
+        # A range holding a single microarchitecture is rendered as a bare name, which is how
+        # "from_string" parses it back. No other range renders that way, so the string
+        # representation stays a faithful encoding of the boundaries.
+        if self.lo == self.hi:
+            return str(self.lo)
+
         return f"{self.lo}:{self.hi}"
 
 
@@ -608,6 +563,223 @@ def microarchitecture_range(
     lo_uarch = lo if lo is None else Microarchitecture.from_string(lo)
     hi_uarch = hi if hi is None else Microarchitecture.from_string(hi)
     return MicroarchitectureRange(lo=lo_uarch, hi=hi_uarch)
+
+
+def _minimal(targets: Iterable[Microarchitecture]) -> List[Microarchitecture]:
+    """Returns the minimal elements of a set of microarchitectures, i.e. those that have no
+    other element of the set below them.
+
+    For known microarchitectures ``y < x`` holds exactly when ``y`` is an ancestor of ``x``, so
+    the check can be done on ancestor names. That avoids the quadratic number of set rebuilds
+    that ``Microarchitecture._to_set`` would incur when comparing every pair.
+    """
+    targets = list(targets)
+    names = {x.name for x in targets}
+    return [x for x in targets if not names.intersection(a.name for a in x.ancestors)]
+
+
+def _maximal(targets: Iterable[Microarchitecture]) -> List[Microarchitecture]:
+    """Returns the maximal elements of a set of microarchitectures, i.e. those that have no
+    other element of the set above them.
+
+    See ``_minimal`` for why ancestor names are used instead of the comparison operators.
+    """
+    targets = list(targets)
+    ancestor_names = {a.name for x in targets for a in x.ancestors}
+    return [x for x in targets if x.name not in ancestor_names]
+
+
+def _cover(r1: MicroarchitectureRange, r2: MicroarchitectureRange) -> List[MicroarchitectureRange]:
+    """Returns a list of ranges whose union holds exactly the known microarchitectures that
+    belong to both the ranges passed as input.
+
+    This is a total operation: a set with several minimal or maximal elements has no unique
+    boundary, and so is not expressible as a single range, but it is always expressible as a
+    union of them. When the intersection does have unique boundaries, the returned list holds
+    exactly the one range between them.
+
+    The result is exact over the *known* microarchitectures. A microarchitecture added to the
+    JSON database in the future may fall inside the intersection without being covered by any
+    of the returned ranges, which is the same caveat that iteration over a range already has.
+    """
+    if r1.empty or r2.empty or r1.family != r2.family:
+        return []
+
+    # Reading the memoized set of known targets is what makes this exact
+
+    common = r1._known_targets & r2._known_targets  # pylint: disable=protected-access
+    if not common:
+        return []
+
+    his: List[Optional[Microarchitecture]]
+    if r1.hi is None and r2.hi is None:
+        # Both ranges are unbounded above, so the intersection is unbounded above too, and must
+        # stay open to keep matching microarchitectures added in the future.
+        his = [None]
+    else:
+        # If exactly one range is bounded above, its upper boundary belongs to the common set
+        # and is its maximum, so taking the maximal elements covers that case too.
+        his = list(_maximal(common))
+
+    return [
+        MicroarchitectureRange(lo=lo, hi=hi)
+        for lo in _minimal(common)
+        for hi in his
+        if hi is None or lo <= hi
+    ]
+
+
+class MicroarchitectureRangeList:
+    """An ordered, deduplicated union of microarchitecture ranges."""
+
+    def __init__(self, ranges: Iterable[MicroarchitectureRange] = ()) -> None:
+        """Represents the union of a list of microarchitecture ranges.
+
+        The members are normalized on construction: empty ranges, duplicates and ranges that are
+        contained in another member are dropped, and what is left is sorted so that the string
+        representation is stable.
+
+        Unlike a single range, a union is closed under intersection, so ``&`` is a total
+        operation that never raises.
+
+        Args:
+            ranges: the ranges to be joined in a union
+        """
+        unique: List[MicroarchitectureRange] = []
+        for current in ranges:
+            if current.empty or current in unique:
+                continue
+            unique.append(current)
+
+        self.ranges: Tuple[MicroarchitectureRange, ...] = tuple(
+            sorted((x for x in unique if not any(x < y for y in unique)), key=str)
+        )
+
+        # The known microarchitectures in this union, computed lazily
+        self._targets: Optional[FrozenSet[Microarchitecture]] = None
+
+    @property
+    def empty(self) -> bool:
+        """True if the union contains no microarchitecture, False otherwise"""
+        return not self.ranges
+
+    @property
+    def concrete(self) -> Optional[Microarchitecture]:
+        """The single microarchitecture this union denotes, or None if it denotes more than one.
+
+        A union is concrete when it has exactly one member and that member is a concrete range.
+        Use this rather than ``len(self) == 1`` to recover a single microarchitecture: see the
+        note in ``__len__`` for why the two are not the same question.
+        """
+        if len(self.ranges) != 1:
+            return None
+        return self.ranges[0].concrete
+
+    @property
+    def _known_targets(self) -> FrozenSet[Microarchitecture]:
+        """The known microarchitectures that fall in this union."""
+        if self._targets is None:
+            # pylint: disable=protected-access
+            self._targets = frozenset().union(*(x._known_targets for x in self.ranges))
+        return self._targets
+
+    def __contains__(self, item: Union[str, Microarchitecture]) -> bool:
+        if isinstance(item, str):
+            item = Microarchitecture.from_string(item)
+
+        if not isinstance(item, Microarchitecture):
+            msg = "only objects of string or Microarchitecture types are accepted [got {0}]"
+            raise TypeError(msg.format(str(type(item))))
+
+        return any(item in x for x in self.ranges)
+
+    def __iter__(self) -> Iterator[Microarchitecture]:
+        # Same order as MicroarchitectureRange, see the comment there
+        return iter(sorted(self._known_targets, key=lambda x: (len(x.ancestors), x.name)))
+
+    def __len__(self) -> int:
+        """The number of known microarchitectures in the union, not the number of members.
+
+        This keeps ``len`` consistent with iteration and membership, as it is for a single
+        range. Use the ``ranges`` attribute to inspect the members.
+
+        Beware that ``len(self) == 1`` does *not* mean the union denotes a single
+        microarchitecture: it is also true of ``mic_knl:``, an open range that happens to have
+        one member in the database today and would gain more if a descendant were added. Use the
+        ``concrete`` property for that question, since it looks at the boundaries instead.
+        """
+        return len(self._known_targets)
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, MicroarchitectureRangeList):
+            return NotImplemented
+        return self.ranges == other.ranges
+
+    def __hash__(self) -> int:
+        return hash(self.ranges)
+
+    def __le__(self, other: object) -> bool:
+        """True if every member of this union is contained in a member of other.
+
+        This is a conservative check: it is sufficient for containment, but not necessary, since
+        a member could be covered by several members of other without sitting inside any single
+        one of them. Being member-wise, it agrees with ``MicroarchitectureRange.__le__``, which
+        compares boundaries rather than the microarchitectures that are known today.
+        """
+        if not isinstance(other, MicroarchitectureRangeList):
+            return NotImplemented
+        return all(any(x <= y for y in other.ranges) for x in self.ranges)
+
+    def __lt__(self, other: object) -> bool:
+        if not isinstance(other, MicroarchitectureRangeList):
+            return NotImplemented
+        return self <= other and self != other
+
+    def __ge__(self, other: object) -> bool:
+        if not isinstance(other, MicroarchitectureRangeList):
+            return NotImplemented
+        return other <= self
+
+    def __gt__(self, other: object) -> bool:
+        if not isinstance(other, MicroarchitectureRangeList):
+            return NotImplemented
+        return other < self
+
+    def __and__(self, other: "MicroarchitectureRangeList") -> "MicroarchitectureRangeList":
+        """Returns the intersection of two unions of ranges.
+
+        This operation is total, and never raises: an intersection that has no unique boundary
+        is returned as a union of more than one range.
+        """
+        if not isinstance(other, MicroarchitectureRangeList):
+            return NotImplemented
+
+        result: List[MicroarchitectureRange] = []
+        for r1 in self.ranges:
+            for r2 in other.ranges:
+                result.extend(_cover(r1, r2))
+        return MicroarchitectureRangeList(result)
+
+    @staticmethod
+    def from_string(list_str: str) -> "MicroarchitectureRangeList":
+        """Returns a union of microarchitecture ranges from its string representation, which is
+        a comma separated list of ranges.
+
+        Raises:
+            InvalidRange: if one of the members is not a valid range
+            ValueError: if a boundary is not a valid microarchitecture name
+        """
+        return MicroarchitectureRangeList(
+            MicroarchitectureRange.from_string(x) for x in list_str.split(",")
+        )
+
+    def __repr__(self) -> str:
+        return f"{self.__class__.__name__}({list(self.ranges)!r})"
+
+    def __str__(self) -> str:
+        if not self.ranges:
+            return "{}"
+        return ",".join(str(x) for x in self.ranges)
 
 
 def generic_microarchitecture(name: str) -> Microarchitecture:
@@ -710,3 +882,11 @@ class InvalidCompilerVersion(ArchspecError, ValueError):
 
 class InvalidRange(ArchspecError, ValueError):
     """Raised when an invalid range is constructed."""
+
+
+class UnknownMicroarchitecture(ArchspecError, ValueError):
+    """Raised when a name does not correspond to any known micro-architecture.
+
+    Inherits from ValueError for backward compatibility, so that callers can catch every parsing
+    failure with ``except ArchspecError`` without also swallowing unrelated errors.
+    """

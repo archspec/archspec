@@ -17,7 +17,14 @@ import archspec.cpu
 import archspec.cpu.alias
 import archspec.cpu.detect
 import archspec.cpu.schema
-from archspec.cpu import InvalidRange, Microarchitecture, MicroarchitectureRange
+from archspec.cpu import (
+    ArchspecError,
+    InvalidRange,
+    Microarchitecture,
+    MicroarchitectureRange,
+    MicroarchitectureRangeList,
+    UnknownMicroarchitecture,
+)
 
 
 @pytest.fixture(
@@ -738,133 +745,6 @@ class TestMicroarchitectureRanges:
         assert (Microarchitecture.from_string(item) in uarch_range) is expected
 
     @pytest.mark.parametrize(
-        "r1_args,r2_args,intersection_args",
-        [
-            # Both lo and hi given and comparable
-            (
-                ("skylake", "icelake"),
-                ("x86_64_v2", "cascadelake"),
-                ("skylake", "cascadelake"),
-            ),
-            # Intersections when some open ranges are given
-            (
-                ("broadwell", None),
-                (None, "cascadelake"),
-                ("broadwell", "cascadelake"),
-            ),
-            # Same generic architectures, but different vendors
-            (
-                ("x86_64_v2", "icelake"),
-                (None, "zen2"),
-                ("x86_64_v2", "x86_64_v3"),
-            ),
-            # Open upper boundary
-            (
-                ("x86_64_v2", None),
-                ("x86_64_v3", None),
-                ("x86_64_v3", None),
-            ),
-            (
-                ("x86_64_v2", None),
-                ("zen4", None),
-                ("zen4", None),
-            ),
-        ],
-    )
-    def test_successful_range_intersection(self, r1_args, r2_args, intersection_args):
-        """Tests that intersecting two ranges gives the expected range, and that it commutes."""
-        r1 = archspec.cpu.microarchitecture_range(lo=r1_args[0], hi=r1_args[1])
-        r2 = archspec.cpu.microarchitecture_range(lo=r2_args[0], hi=r2_args[1])
-
-        expected_intersection = archspec.cpu.microarchitecture_range(
-            lo=intersection_args[0], hi=intersection_args[1]
-        )
-        assert r1 & r2 == r2 & r1
-        assert r1 & r2 == expected_intersection
-
-    @pytest.mark.parametrize(
-        "lo,hi",
-        [
-            ("broadwell", "skylake"),
-            (None, "skylake"),
-            ("broadwell", None),
-        ],
-    )
-    def test_intersection_with_empty_range(self, lo, hi):
-        """Tests that intersecting any range with the empty range gives the empty range."""
-        r = archspec.cpu.microarchitecture_range(lo=lo, hi=hi)
-        empty_range = archspec.cpu.microarchitecture_range(lo=None, hi=None)
-
-        assert r & empty_range == empty_range
-        assert empty_range & r == empty_range
-
-    @pytest.mark.parametrize(
-        "r1_args,r2_args",
-        [
-            (("broadwell", "icelake"), ("aarch64", None)),
-            (("broadwell", None), (None, "neoverse_n1")),
-            (("x86_64_v2", None), (None, "neoverse_n1")),
-        ],
-    )
-    def test_intersection_with_non_compatible_ranges(self, r1_args, r2_args):
-        """Tests that intersecting ranges from different architecture families gives the empty
-        range, rather than raising.
-        """
-        r1 = archspec.cpu.microarchitecture_range(lo=r1_args[0], hi=r1_args[1])
-        r2 = archspec.cpu.microarchitecture_range(lo=r2_args[0], hi=r2_args[1])
-        empty_range = archspec.cpu.microarchitecture_range()
-
-        assert r1 & r2 == empty_range
-        assert r2 & r1 == empty_range
-
-    @pytest.mark.parametrize(
-        "r1_args,r2_args,ambiguous_boundary",
-        [
-            # 'ampere1' and 'ampere1a' are both above 'armv8.6a' and 'neoverse_n1', and are not
-            # comparable, so the intersection has no unique lower boundary
-            (("armv8.6a", None), ("neoverse_n1", None), "lower"),
-            (("armv9.0a", None), ("cortex_a72", None), "lower"),
-            # 'armv8.6a' and 'neoverse_n1' are both below 'ampere1' and 'ampere1a', and are not
-            # comparable, so the intersection has no unique upper boundary
-            ((None, "ampere1"), (None, "ampere1a"), "upper"),
-            ((None, "neoverse_n2"), (None, "neoverse_v2"), "upper"),
-        ],
-    )
-    def test_intersection_with_ambiguous_boundaries(self, r1_args, r2_args, ambiguous_boundary):
-        """Tests that intersecting same-family ranges raises when the result cannot be expressed
-        as a range, because the microarchitecture DAG is not a lattice.
-        """
-        r1 = archspec.cpu.microarchitecture_range(lo=r1_args[0], hi=r1_args[1])
-        r2 = archspec.cpu.microarchitecture_range(lo=r2_args[0], hi=r2_args[1])
-
-        with pytest.raises(ValueError, match=f"the {ambiguous_boundary} boundary is ambiguous"):
-            r1 & r2
-        with pytest.raises(ValueError, match=f"the {ambiguous_boundary} boundary is ambiguous"):
-            r2 & r1
-
-    @pytest.mark.parametrize(
-        "r1_args,r2_args,expected",
-        [
-            # Intersecting a range with itself
-            (("broadwell", "broadwell"), ("broadwell", "broadwell"), "broadwell"),
-            # Boundaries meeting at a single microarchitecture
-            (("x86_64", "skylake"), ("skylake", "icelake"), "skylake"),
-            # An open range meeting a closed one on its upper boundary
-            (("armv8.6a", None), ("neoverse_n1", "ampere1"), "ampere1"),
-        ],
-    )
-    def test_intersection_of_a_single_microarchitecture(self, r1_args, r2_args, expected):
-        """Tests that an intersection collapsing to a single microarchitecture is computed
-        correctly, instead of raising a TypeError.
-        """
-        r1 = archspec.cpu.microarchitecture_range(lo=r1_args[0], hi=r1_args[1])
-        r2 = archspec.cpu.microarchitecture_range(lo=r2_args[0], hi=r2_args[1])
-
-        result = r1 & r2
-        assert result == archspec.cpu.microarchitecture_range(lo=expected, hi=expected)
-        assert list(result) == [archspec.cpu.TARGETS[expected]]
-
-    @pytest.mark.parametrize(
         "r1_args,r2_args,expected",
         [
             # A closed range inside an open one
@@ -934,8 +814,10 @@ class TestMicroarchitectureRanges:
             # A missing lower boundary is normalized to the family of the upper one
             (":skylake", "x86_64:skylake"),
             (":neoverse_n1", "aarch64:neoverse_n1"),
-            # A bare name is the range holding that microarchitecture only
-            ("broadwell", "broadwell:broadwell"),
+            # A bare name is the range holding that microarchitecture only, and is rendered
+            # back as a bare name
+            ("broadwell", "broadwell"),
+            ("broadwell:broadwell", "broadwell"),
             # The empty range
             ("{}", "{}"),
             (":", "{}"),
@@ -1091,47 +973,530 @@ class TestMicroarchitectureRanges:
             if r1 <= r2:
                 assert all(x in r2 for x in r1)
 
-    def test_intersection_algebraic_laws(self, sample_ranges):
-        """Tests that intersection is idempotent, commutative, and that the empty range absorbs
-        any other range.
-        """
-        empty_range = MicroarchitectureRange()
-        for uarch_range in sample_ranges:
-            assert uarch_range & uarch_range == uarch_range
-            assert uarch_range & empty_range == empty_range
-            assert empty_range & uarch_range == empty_range
+    def test_a_range_supports_neither_union_nor_intersection(self):
+        """Tests that a single range offers neither ``|`` nor ``&``.
 
-        for r1, r2 in itertools.combinations(sample_ranges, 2):
-            try:
-                intersection = r1 & r2
-            except ValueError:
-                # The intersection has no unique boundary, so it must fail both ways round
-                with pytest.raises(ValueError):
-                    r2 & r1
-                continue
-            assert intersection == r2 & r1
-
-    def test_intersection_is_the_exact_set_intersection(self, sample_ranges):
-        """Tests that a successful intersection holds exactly the microarchitectures that belong
-        to both ranges, and is contained in each of them.
+        A range is closed under neither operation, since the microarchitecture partial order is
+        not a lattice. Both live on MicroarchitectureRangeList, where they can be total, rather
+        than being offered here in a form that fails on some inputs.
         """
-        for r1, r2 in itertools.combinations(sample_ranges, 2):
-            try:
-                intersection = r1 & r2
-            except ValueError:
-                continue
+        r1 = MicroarchitectureRange.from_string("armv8.6a:")
+        r2 = MicroarchitectureRange.from_string("neoverse_n1:")
+
+        with pytest.raises(TypeError, match="unsupported operand"):
+            r1 & r2  # pylint: disable=pointless-statement
+        with pytest.raises(TypeError, match="unsupported operand"):
+            r1 | r2  # pylint: disable=pointless-statement
+
+
+#: Pairs of ranges whose intersection has no unique boundary, so that it cannot be expressed as a
+#: single range. They all come from the ``aarch64`` family, where ``ampere1``/``ampere1a`` and the
+#: ``neoverse`` chips have two parents each.
+AMBIGUOUS_RANGE_PAIRS = list(
+    itertools.product(
+        ["armv8.3a:", "armv8.4a:", "armv8.5a:", "armv8.6a:", "armv9.0a:"],
+        ["cortex_a72:", "neoverse_n1:"],
+    )
+) + list(
+    itertools.combinations(
+        [":ampere1", ":ampere1a", ":neoverse_n2", ":neoverse_v1", ":neoverse_v2"], 2
+    )
+)
+
+
+class TestMicroarchitectureRangeLists:
+    @pytest.fixture(scope="class")
+    def sample_lists(self):
+        """A selection of unions, covering the interesting parts of both the x86_64 and the
+        aarch64 DAGs, for the properties that need to compare unions pairwise.
+        """
+        names = [
+            # x86_64, which is a lattice, including both sides of a bifurcation
+            "x86_64",
+            "x86_64_v2",
+            "x86_64_v4",
+            "broadwell",
+            "mic_knl",
+            "skylake",
+            "cascadelake",
+            "cannonlake",
+            "icelake",
+            "zen4",
+            # aarch64, which is not a lattice
+            "aarch64",
+            "armv8.2a",
+            "armv8.6a",
+            "cortex_a72",
+            "neoverse_n1",
+            "ampere1",
+            "ampere1a",
+        ]
+        result = [MicroarchitectureRangeList()]
+        for name in names:
+            uarch = archspec.cpu.TARGETS[name]
+            result.append(MicroarchitectureRangeList([MicroarchitectureRange(lo=uarch)]))
+            result.append(MicroarchitectureRangeList([MicroarchitectureRange(hi=uarch)]))
+
+        # Unions with more than one member, including one crossing two architecture families
+        result.extend(
+            MicroarchitectureRangeList.from_string(x)
+            for x in [
+                "x86_64_v2:,aarch64:",
+                "broadwell:skylake,ampere1:",
+                "mic_knl:,x86_64:mic_knl",
+                "cascadelake:,cannonlake:",
+            ]
+        )
+        return result
+
+    @pytest.mark.parametrize(
+        "list_str,expected_str",
+        [
+            # A single range, in each of its forms
+            ("broadwell:skylake", "broadwell:skylake"),
+            ("broadwell:", "broadwell:"),
+            (":skylake", "x86_64:skylake"),
+            ("broadwell", "broadwell"),
+            # Members are sorted, so that the representation is stable
+            ("zen4:,broadwell:", "broadwell:,zen4:"),
+            ("  broadwell : skylake , zen4 ", "broadwell:skylake,zen4"),
+            # Members from different architecture families can be joined
+            ("x86_64,aarch64", "aarch64,x86_64"),
+            # Duplicates and members contained in another member are dropped
+            ("broadwell:,broadwell:", "broadwell:"),
+            ("x86_64:,broadwell:skylake", "x86_64:"),
+            ("broadwell:skylake,x86_64:", "x86_64:"),
+            ("skylake,broadwell:icelake", "broadwell:icelake"),
+            # Empty members are dropped
+            ("{},broadwell:", "broadwell:"),
+            (":,broadwell:", "broadwell:"),
+            # The empty union
+            ("{}", "{}"),
+        ],
+    )
+    def test_list_from_string(self, list_str, expected_str):
+        """Tests that a union can be parsed from its string representation, and that it is
+        normalized on construction.
+        """
+        assert str(MicroarchitectureRangeList.from_string(list_str)) == expected_str
+
+    @pytest.mark.parametrize(
+        "list_str,exception",
+        [
+            ("broadwell:skylake:icelake,zen4:", InvalidRange),
+            ("broadwell:,not_a_target", ValueError),
+            ("broadwell:,", ValueError),
+        ],
+    )
+    def test_list_from_string_errors(self, list_str, exception):
+        """Tests that parsing an invalid union from a string raises."""
+        with pytest.raises(exception):
+            MicroarchitectureRangeList.from_string(list_str)
+
+    def test_empty_list(self):
+        """Tests the properties of the union with no members."""
+        empty = MicroarchitectureRangeList()
+
+        assert empty.empty is True
+        assert empty.ranges == ()
+        assert len(empty) == 0
+        assert list(empty) == []
+        assert "broadwell" not in empty
+        assert str(empty) == "{}"
+        assert empty == MicroarchitectureRangeList.from_string("{}")
+        assert empty == MicroarchitectureRangeList([MicroarchitectureRange()])
+
+    def test_list_contains(self):
+        """Tests that a union holds the microarchitectures of all its members, and nothing
+        else.
+        """
+        uarch_list = MicroarchitectureRangeList.from_string("broadwell:skylake,neoverse_n1:")
+
+        assert "broadwell" in uarch_list
+        assert "skylake" in uarch_list
+        assert "neoverse_n1" in uarch_list
+        assert "ampere1" in uarch_list
+        assert archspec.cpu.TARGETS["skylake"] in uarch_list
+        assert "haswell" not in uarch_list
+        assert "icelake" not in uarch_list
+        assert "cortex_a72" not in uarch_list
+
+    @pytest.mark.parametrize("item", [42, None, 3.14])
+    def test_list_contains_rejects_invalid_types(self, item):
+        """Tests that testing membership of an object that is not a microarchitecture, nor a
+        string, raises a TypeError, even when the union is empty.
+        """
+        for uarch_list in (
+            MicroarchitectureRangeList.from_string("broadwell:icelake"),
+            MicroarchitectureRangeList(),
+        ):
+            with pytest.raises(TypeError, match="only objects of string or Microarchitecture"):
+                item in uarch_list  # pylint: disable=pointless-statement
+
+    def test_list_iteration_is_deterministic_and_topological(self):
+        """Tests that iterating a union yields each microarchitecture once, in a stable order
+        with ancestors always coming before their descendants.
+        """
+        # The two members overlap, so a microarchitecture must not be yielded twice
+        uarch_list = MicroarchitectureRangeList.from_string("x86_64:skylake,broadwell:icelake")
+        result = list(uarch_list)
+
+        assert result == list(uarch_list), "iteration order is not stable"
+        assert len(result) == len(uarch_list) == len(set(result))
+        assert set(result) == set(
+            archspec.cpu.microarchitecture_range(lo="x86_64", hi="skylake")
+        ) | set(archspec.cpu.microarchitecture_range(lo="broadwell", hi="icelake"))
+        for index, uarch in enumerate(result):
+            descendants_before = [x for x in result[:index] if uarch < x]
+            assert not descendants_before, f"{uarch} comes after its descendants"
+
+    @pytest.mark.parametrize(
+        "l1_str,l2_str,expected_str",
+        [
+            # The four shapes where a single range cannot express the intersection
+            ("armv9.0a:", "neoverse_n1:", "neoverse_n2:,neoverse_v2:"),
+            ("armv8.6a:", "neoverse_n1:", "ampere1:,ampere1a:"),
+            (":ampere1", ":ampere1a", "aarch64:armv8.6a,aarch64:neoverse_n1"),
+            (":neoverse_n2", ":neoverse_v2", "aarch64:armv9.0a,aarch64:neoverse_n1"),
+            # Intersections that a single range does express
+            ("skylake:icelake", "x86_64_v2:cascadelake", "skylake:cascadelake"),
+            ("x86_64:skylake", "skylake:icelake", "skylake"),
+            (":cascadelake", ":cannonlake", "x86_64:skylake"),
+            ("x86_64_v2:icelake", ":zen2", "x86_64_v2:x86_64_v3"),
+            # One boundary open on each side
+            ("broadwell:", ":cascadelake", "broadwell:cascadelake"),
+            # Both unbounded above, so the result stays open
+            ("x86_64_v2:", "x86_64_v3:", "x86_64_v3:"),
+            ("x86_64_v2:", "zen4:", "zen4:"),
+            # Collapsing to a single microarchitecture
+            ("broadwell", "broadwell", "broadwell"),
+            ("armv8.6a:", "neoverse_n1:ampere1", "ampere1"),
+            # Different families give the empty union rather than raising
+            ("broadwell:icelake", "aarch64:", "{}"),
+            ("broadwell:", ":neoverse_n1", "{}"),
+            # The empty union absorbs anything
+            ("broadwell:skylake", "{}", "{}"),
+            # Intersections of unions with more than one member
+            ("x86_64:,aarch64:", "broadwell:,neoverse_n1:", "broadwell:,neoverse_n1:"),
+            ("x86_64:broadwell,zen4:", "aarch64:", "{}"),
+        ],
+    )
+    def test_list_intersection(self, l1_str, l2_str, expected_str):
+        """Tests that intersecting two unions gives the expected union, and that it commutes."""
+        l1 = MicroarchitectureRangeList.from_string(l1_str)
+        l2 = MicroarchitectureRangeList.from_string(l2_str)
+        expected = MicroarchitectureRangeList.from_string(expected_str)
+
+        assert l1 & l2 == expected
+        assert l2 & l1 == expected
+        assert str(l1 & l2) == expected_str
+
+    @pytest.mark.parametrize("r1_str,r2_str", AMBIGUOUS_RANGE_PAIRS)
+    def test_list_intersection_is_total(self, r1_str, r2_str):
+        """Tests that the intersection of two unions never raises, even for the pairs of ranges
+        whose intersection has no unique boundary, and that it is the exact set intersection.
+        """
+        l1 = MicroarchitectureRangeList.from_string(r1_str)
+        l2 = MicroarchitectureRangeList.from_string(r2_str)
+        intersection = l1 & l2
+
+        assert len(intersection.ranges) > 1, "an ambiguous boundary needs more than one range"
+        assert set(intersection) == set(l1) & set(l2)
+        assert intersection <= l1
+        assert intersection <= l2
+
+    def test_list_intersection_keeps_one_member_when_boundaries_are_unique(self, sample_lists):
+        """Tests that a union grows extra members only when it has to.
+
+        Whenever the intersection of two single ranges has unique boundaries, the result is that
+        one range, so the number of members does not creep up on the common case.
+        """
+        ranges = [x for uarch_list in sample_lists for x in uarch_list.ranges]
+        multi_member = 0
+        for r1, r2 in itertools.combinations(ranges, 2):
+            intersection = MicroarchitectureRangeList([r1]) & MicroarchitectureRangeList([r2])
             assert set(intersection) == set(r1) & set(r2)
-            assert intersection <= r1
-            assert intersection <= r2
+            if len(intersection.ranges) > 1:
+                multi_member += 1
+                # Only same family pairs can need more than one member
+                assert r1.family == r2.family
+        assert multi_member, "no pair needed more than one member"
 
-    def test_intersection_is_associative(self, sample_ranges):
-        """Tests that intersection is associative, whenever all the intermediate results can be
-        expressed as ranges.
+    def test_list_intersection_is_the_exact_set_intersection(self, sample_lists):
+        """Tests that the intersection of two unions holds exactly the microarchitectures that
+        belong to both of them, and is contained in each of them.
         """
-        for r1, r2, r3 in itertools.combinations(sample_ranges, 3):
-            try:
-                left = (r1 & r2) & r3
-                right = r1 & (r2 & r3)
-            except ValueError:
-                continue
-            assert left == right
+        for l1, l2 in itertools.combinations(sample_lists, 2):
+            intersection = l1 & l2
+            assert set(intersection) == set(l1) & set(l2)
+            assert intersection <= l1
+            assert intersection <= l2
+
+    def test_list_intersection_algebraic_laws(self, sample_lists):
+        """Tests that intersection is idempotent, commutative, and that the empty union absorbs
+        any other union.
+        """
+        empty = MicroarchitectureRangeList()
+        for uarch_list in sample_lists:
+            assert uarch_list & uarch_list == uarch_list
+            assert uarch_list & empty == empty
+            assert empty & uarch_list == empty
+
+        for l1, l2 in itertools.combinations(sample_lists, 2):
+            assert l1 & l2 == l2 & l1
+
+    def test_list_intersection_is_associative(self, sample_lists):
+        """Tests that intersection is associative. Unlike the single range case this needs no
+        exception handling, since the operation is total.
+        """
+        for l1, l2, l3 in itertools.combinations(sample_lists, 3):
+            assert (l1 & l2) & l3 == l1 & (l2 & l3)
+
+    def test_list_intersection_rejects_invalid_types(self):
+        """Tests that a union can only be intersected with another union."""
+        uarch_list = MicroarchitectureRangeList.from_string("broadwell:")
+        with pytest.raises(TypeError):
+            uarch_list & MicroarchitectureRange.from_string("broadwell:")
+
+    @pytest.mark.parametrize(
+        "l1_str,l2_str,expected",
+        [
+            # A single member inside a single member
+            ("broadwell:icelake", "x86_64_v2:", True),
+            ("x86_64_v2:", "broadwell:icelake", False),
+            # Every member is inside a member of the other union
+            ("broadwell:,neoverse_n1:", "x86_64:,aarch64:", True),
+            ("x86_64:,aarch64:", "broadwell:,neoverse_n1:", False),
+            # One member is inside, the other is not
+            ("broadwell:,neoverse_n1:", "x86_64:", False),
+            ("broadwell:", "x86_64:,aarch64:", True),
+            # A union always contains itself
+            ("broadwell:,neoverse_n1:", "broadwell:,neoverse_n1:", True),
+            # The empty union is contained in every union
+            ("{}", "broadwell:", True),
+            ("broadwell:", "{}", False),
+        ],
+    )
+    def test_list_containment(self, l1_str, l2_str, expected):
+        """Tests that the comparison operators between unions implement subset semantics."""
+        l1 = MicroarchitectureRangeList.from_string(l1_str)
+        l2 = MicroarchitectureRangeList.from_string(l2_str)
+
+        assert (l1 <= l2) is expected
+        assert (l2 >= l1) is expected
+        # The strict operators agree, except when the two unions are equal
+        assert (l1 < l2) is (expected and l1 != l2)
+        assert (l2 > l1) is (expected and l1 != l2)
+
+    def test_list_containment_is_a_partial_order(self, sample_lists):
+        """Tests that containment between unions is reflexive, antisymmetric and transitive."""
+        for uarch_list in sample_lists:
+            assert uarch_list <= uarch_list
+
+        for l1, l2 in itertools.permutations(sample_lists, 2):
+            if l1 <= l2 and l2 <= l1:
+                assert l1 == l2
+
+        for l1, l2, l3 in itertools.permutations(sample_lists, 3):
+            if l1 <= l2 and l2 <= l3:
+                assert l1 <= l3
+
+    def test_list_containment_is_sound(self, sample_lists):
+        """Tests that containment between unions is never claimed when the microarchitectures of
+        one are not a subset of the microarchitectures of the other.
+
+        Containment is checked member-wise, which is sufficient but not necessary, so the
+        converse does not hold, see ``test_list_containment_is_conservative``.
+        """
+        for l1, l2 in itertools.permutations(sample_lists, 2):
+            if l1 <= l2:
+                assert set(l1) <= set(l2)
+                assert all(x in l2 for x in l1)
+
+    def test_list_containment_is_conservative(self):
+        """Tests the documented approximation in containment: a member covered by two members of
+        the other union, rather than by a single one, is not recognized.
+        """
+        narrow = MicroarchitectureRangeList.from_string("x86_64:icelake")
+        wide = MicroarchitectureRangeList.from_string("x86_64:cascadelake,cannonlake:icelake")
+
+        assert set(narrow) <= set(wide)
+        assert not narrow <= wide
+
+    def test_list_equality_agrees_with_hashing(self, sample_lists):
+        """Tests that equal unions hash equally and share the same string representation, so
+        that unions can be used in sets and as dictionary keys.
+        """
+        for l1, l2 in itertools.combinations(sample_lists, 2):
+            if l1 == l2:
+                assert hash(l1) == hash(l2)
+                assert str(l1) == str(l2)
+            else:
+                assert str(l1) != str(l2)
+
+        # The string representation is a faithful encoding, so it cannot collapse distinct unions
+        assert len({str(x) for x in sample_lists}) == len(set(sample_lists))
+
+    def test_list_string_representation_round_trips(self, sample_lists):
+        """Tests that every union can be recovered from its string representation."""
+        extra = [
+            # A union of point ranges, which render as bare names
+            MicroarchitectureRangeList.from_string("broadwell,zen4"),
+            # A single member union, with each kind of boundary
+            MicroarchitectureRangeList.from_string("broadwell"),
+            MicroarchitectureRangeList.from_string("broadwell:"),
+            MicroarchitectureRangeList.from_string(":broadwell"),
+            MicroarchitectureRangeList.from_string("x86_64:broadwell"),
+        ]
+        for uarch_list in list(sample_lists) + extra:
+            assert MicroarchitectureRangeList.from_string(str(uarch_list)) == uarch_list
+
+    def test_list_repr(self):
+        """Tests that the repr of a union shows its members."""
+        uarch_list = MicroarchitectureRangeList.from_string("broadwell:skylake")
+        assert repr(uarch_list) == (
+            "MicroarchitectureRangeList([MicroarchitectureRange("
+            "lo=Microarchitecture('broadwell'), hi=Microarchitecture('skylake'))])"
+        )
+
+
+class TestConcreteMicroarchitectures:
+    """Tests recovering a single microarchitecture from a range or a union of ranges."""
+
+    @pytest.mark.parametrize(
+        "range_str,expected",
+        [
+            # A bare name is the range holding that microarchitecture only
+            ("broadwell", "broadwell"),
+            ("broadwell:broadwell", "broadwell"),
+            (":x86_64", "x86_64"),
+            # Ranges spanning more than one microarchitecture are not concrete
+            ("broadwell:skylake", None),
+            ("broadwell:", None),
+            (":skylake", None),
+            # The empty range is not concrete either
+            ("{}", None),
+            # An open range with a single member today is still not concrete, since a
+            # descendant added to the database in the future would fall in it
+            ("mic_knl:", None),
+        ],
+    )
+    def test_range_concrete(self, range_str, expected):
+        """Tests that a range is concrete exactly when its boundaries are the same
+        microarchitecture, which is a property of the boundaries and not of the database.
+        """
+        result = MicroarchitectureRange.from_string(range_str).concrete
+        if expected is None:
+            assert result is None
+        else:
+            assert result is archspec.cpu.TARGETS[expected]
+
+    @pytest.mark.parametrize(
+        "list_str,expected",
+        [
+            ("broadwell", "broadwell"),
+            ("broadwell:broadwell", "broadwell"),
+            # More than one member is never concrete, even when every member is
+            ("broadwell,zen4", None),
+            # A single member that is not concrete
+            ("broadwell:skylake", None),
+            ("mic_knl:", None),
+            # The empty union
+            ("{}", None),
+        ],
+    )
+    def test_list_concrete(self, list_str, expected):
+        """Tests that a union is concrete exactly when it has one concrete member."""
+        result = MicroarchitectureRangeList.from_string(list_str).concrete
+        if expected is None:
+            assert result is None
+        else:
+            assert result is archspec.cpu.TARGETS[expected]
+
+    def test_concrete_is_not_the_same_question_as_length(self):
+        """Tests the case that motivates having ``concrete`` at all: ``len() == 1`` is true both
+        for a genuinely concrete range and for an open range that happens to hold one
+        microarchitecture today, and the two must not be conflated.
+        """
+        concrete = MicroarchitectureRangeList.from_string("mic_knl")
+        open_range = MicroarchitectureRangeList.from_string("mic_knl:")
+
+        assert len(concrete) == len(open_range) == 1
+        assert list(concrete) == list(open_range)
+
+        assert concrete.concrete is archspec.cpu.TARGETS["mic_knl"]
+        assert open_range.concrete is None
+        assert concrete != open_range
+
+    def test_concrete_round_trips_through_the_microarchitecture(self):
+        """Tests that a concrete union yields back the very object from TARGETS, so that vendor,
+        features and compiler information survive the round trip.
+        """
+        for name in ("broadwell", "neoverse_n1", "x86_64"):
+            recovered = MicroarchitectureRangeList.from_string(name).concrete
+            assert recovered is archspec.cpu.TARGETS[name]
+            assert MicroarchitectureRangeList.from_string(str(recovered)).concrete is recovered
+
+    def test_intersection_collapsing_to_one_microarchitecture_is_concrete(self):
+        """Tests that an intersection that narrows down to a single microarchitecture reports as
+        concrete, which is how a client detects that a constraint has been fully resolved.
+        """
+        r1 = MicroarchitectureRangeList.from_string("x86_64:skylake")
+        r2 = MicroarchitectureRangeList.from_string("skylake:icelake")
+
+        assert (r1 & r2).concrete is archspec.cpu.TARGETS["skylake"]
+
+    def test_ambiguous_intersection_is_not_concrete(self):
+        """Tests that an intersection returned as several members is not concrete, even though
+        each of its members is an open range."""
+        result = MicroarchitectureRangeList.from_string(
+            "armv9.0a:"
+        ) & MicroarchitectureRangeList.from_string("neoverse_n1:")
+
+        assert len(result.ranges) == 2
+        assert result.concrete is None
+
+
+class TestUnknownMicroarchitectureErrors:
+    """Tests that every parsing failure is catchable as an ArchspecError."""
+
+    @pytest.mark.parametrize(
+        "bad_str",
+        ["not_a_target", "not_a_target:", ":not_a_target", "broadwell:not_a_target"],
+    )
+    def test_unknown_names_raise_archspec_errors(self, bad_str):
+        """Tests that an unknown microarchitecture name raises UnknownMicroarchitecture, so a
+        caller can catch ArchspecError instead of a bare ValueError.
+        """
+        with pytest.raises(UnknownMicroarchitecture):
+            MicroarchitectureRange.from_string(bad_str)
+        with pytest.raises(ArchspecError):
+            MicroarchitectureRangeList.from_string(bad_str)
+
+    def test_unknown_name_from_microarchitecture(self):
+        """Tests the same for the Microarchitecture entry point."""
+        with pytest.raises(UnknownMicroarchitecture, match="unknown micro-architecture"):
+            Microarchitecture.from_string("not_a_target")
+
+    def test_unknown_name_in_a_comparison(self):
+        """Tests that comparing against an unknown name also raises an ArchspecError, rather than
+        the bare ValueError the coercion decorator used to produce.
+        """
+        with pytest.raises(UnknownMicroarchitecture, match="not a valid target name"):
+            _ = archspec.cpu.TARGETS["broadwell"] <= "not_a_target"
+
+    def test_every_parse_failure_is_an_archspec_error(self):
+        """Tests that both failure modes of range parsing share the ArchspecError base, so one
+        except clause covers unknown names and malformed ranges alike.
+        """
+        for bad_str in ("not_a_target", "broadwell:skylake:icelake", "skylake:broadwell"):
+            with pytest.raises(ArchspecError):
+                MicroarchitectureRangeList.from_string(bad_str)
+
+    def test_unknown_microarchitecture_is_still_a_value_error(self):
+        """Tests that the new exception keeps ValueError as a base, so existing callers that
+        catch ValueError are unaffected.
+        """
+        assert issubclass(UnknownMicroarchitecture, ValueError)
+        assert issubclass(UnknownMicroarchitecture, ArchspecError)
+        assert issubclass(InvalidRange, ArchspecError)

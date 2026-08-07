@@ -303,12 +303,13 @@ lower boundary is normalized to the family of the upper one:
     >>> str(archspec.cpu.MicroarchitectureRange.from_string(':skylake'))
     'x86_64:skylake'
 
-A bare name is the range holding that microarchitecture only, and ``{}`` is the empty range:
+A bare name is the range holding that microarchitecture only, and ``{}`` is the empty range.
+A range whose boundaries coincide is rendered back as a bare name:
 
 .. code-block:: python
 
     >>> str(archspec.cpu.MicroarchitectureRange.from_string('broadwell'))
-    'broadwell:broadwell'
+    'broadwell'
 
 Ranges implement a "container" semantic over microarchitectures:
 
@@ -356,56 +357,130 @@ Ranges are compared by their boundaries, and not by the microarchitectures they 
 today, so that comparisons stay stable as the JSON database grows. Two ranges can also be
 incomparable, since containment is a partial order.
 
-Finally, ranges can be intersected, which is how a client conjoins two constraints:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Why a single range is not closed under set algebra
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A range deliberately offers neither ``|`` nor ``&``:
 
 .. code-block:: python
 
-    >>> r1 = archspec.cpu.microarchitecture_range(lo='skylake', hi='icelake')
-    >>> r2 = archspec.cpu.microarchitecture_range(lo='x86_64_v2', hi='cascadelake')
-    >>> str(r1 & r2)
+    >>> r1 = archspec.cpu.microarchitecture_range(lo='armv8.6a')
+    >>> r2 = archspec.cpu.microarchitecture_range(lo='neoverse_n1')
+    >>> r1 & r2
+    Traceback (most recent call last):
+      File "<input>", line 1, in <module>
+    TypeError: unsupported operand type(s) for &: 'MicroarchitectureRange' and 'MicroarchitectureRange'
+
+The reason is that microarchitectures form a partial order, but **not a lattice**: two of them
+need not have a unique closest common ancestor or descendant. When that happens the intersection
+of two ranges is a perfectly well-defined *set* of microarchitectures that has no unique
+boundary, and so is not a range at all.
+
+The pair above is the canonical case. ``armv8.6a`` and ``neoverse_n1`` are not comparable, and
+the microarchitectures above both of them are ``ampere1`` and ``ampere1a``, which are not
+comparable either, so the result has two minimal elements instead of one. Swapping the
+boundaries gives the mirror case, where the microarchitectures below both ``ampere1`` and
+``ampere1a`` have two maximal elements.
+
+Union has the same problem, more obviously: two ranges from different architecture families
+have nothing in between to interpolate over.
+
+Rather than offer an operation that fails on some inputs, or one that silently widens or narrows
+the answer, both operations live on the union type described below, where they are total. In the
+currently modeled data every such pair is in the ``aarch64`` family, coming from the
+``ampere1``/``ampere1a`` pair and the ``neoverse`` chips each having two parents; the ``x86_64``
+family is a lattice. Note that a bifurcation on its own is not a problem: ``cascadelake`` and
+``cannonlake`` are not comparable, but ``icelake`` descends from both and ``skylake`` precedes
+both, so their boundaries stay unambiguous.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Unions of ranges
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A ``MicroarchitectureRangeList`` is a union of ranges, written as a comma separated list. It is
+what a client needs when a constraint cannot be expressed as a single interval, for instance
+because it spans two architecture families:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.MicroarchitectureRangeList.from_string('x86_64_v2:skylake,zen4:'))
+    'x86_64_v2:skylake,zen4:'
+
+Members are normalized on construction: empty members, duplicates and members contained in
+another member are dropped, and what is left is sorted, so that the string representation is
+stable and can be parsed back:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.MicroarchitectureRangeList.from_string('x86_64:,broadwell:skylake'))
+    'x86_64:'
+
+A union holds the microarchitectures of all its members, and can be compared to another union
+with the same set semantics as a single range.
+
+The reason for having this type is that, unlike a single range, a union *is* closed under
+intersection, so ``&`` is a **total** operation that never raises. It is defined on the pair from
+the previous section, which a single range cannot express:
+
+.. code-block:: python
+
+    >>> l1 = archspec.cpu.MicroarchitectureRangeList.from_string('armv8.6a:')
+    >>> l2 = archspec.cpu.MicroarchitectureRangeList.from_string('neoverse_n1:')
+    >>> str(l1 & l2)
+    'ampere1:,ampere1a:'
+
+The two minimal elements that leave the lower boundary ambiguous become two members of the union.
+When the intersection does have unique boundaries, the result is the single range between them,
+so a union only ever grows extra members where it has to:
+
+.. code-block:: python
+
+    >>> l1 = archspec.cpu.MicroarchitectureRangeList.from_string('skylake:icelake')
+    >>> l2 = archspec.cpu.MicroarchitectureRangeList.from_string('x86_64_v2:cascadelake')
+    >>> str(l1 & l2)
     'skylake:cascadelake'
 
-Intersecting ranges that cannot overlap, including ranges from different architecture families,
-gives the empty range:
+The result is exact over the *known* microarchitectures, which is the same caveat that
+iteration over a range already carries. A microarchitecture added to the
+:ref:`cpu_json_database` in the future, descending from both ``armv8.6a`` and ``neoverse_n1``
+but from neither ``ampere1`` nor ``ampere1a``, would fall inside the intersection without being
+covered by any of the members above.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Recovering a single microarchitecture
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A client that narrows a constraint down usually wants to know when only one microarchitecture is
+left, and to get that object back. Both a range and a union expose a ``concrete`` property, which
+returns the microarchitecture when the boundaries denote exactly one, and ``None`` otherwise:
 
 .. code-block:: python
 
-    >>> str(archspec.cpu.microarchitecture_range(lo='broadwell') & archspec.cpu.microarchitecture_range(lo='aarch64'))
-    '{}'
+    >>> r1 = archspec.cpu.MicroarchitectureRangeList.from_string('x86_64:skylake')
+    >>> r2 = archspec.cpu.MicroarchitectureRangeList.from_string('skylake:icelake')
+    >>> (r1 & r2).concrete
+    Microarchitecture('skylake')
 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-Intersection is a partial operation
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The object returned is the one from :py:data:`archspec.cpu.TARGETS`, so features, vendor and
+compiler information are all still reachable through it.
 
-Microarchitectures form a partial order, but **not a lattice**: two of them need not have a
-unique closest common ancestor or descendant. When that happens the intersection of two ranges
-is a perfectly well-defined *set* of microarchitectures that has no unique boundary, and so
-cannot be expressed as a range. ``archspec`` raises a ``ValueError`` rather than silently
-widening or narrowing the result:
-
-.. code-block:: python
-
-    >>> archspec.cpu.microarchitecture_range(hi='ampere1') & archspec.cpu.microarchitecture_range(hi='ampere1a')
-    Traceback (most recent call last):
-      File "<input>", line 1, in <module>
-    ValueError: cannot intersect aarch64:ampere1 and aarch64:ampere1a, the upper boundary is ambiguous
-
-Here ``ampere1`` and ``ampere1a`` both descend from ``armv8.6a`` and ``neoverse_n1``, which are
-not comparable to each other, so the microarchitectures below both of them have two maximal
-elements instead of one. The mirror case yields an ambiguous *lower* boundary:
+Note that this is deliberately *not* the same question as whether the range holds one
+microarchitecture today. ``mic_knl`` is concrete, while ``mic_knl:`` is not, even though
+``mic_knl`` currently has no descendant and both enumerate a single microarchitecture:
 
 .. code-block:: python
 
-    >>> archspec.cpu.microarchitecture_range(lo='armv8.6a') & archspec.cpu.microarchitecture_range(lo='neoverse_n1')
-    Traceback (most recent call last):
-      File "<input>", line 1, in <module>
-    ValueError: cannot intersect armv8.6a: and neoverse_n1:, the lower boundary is ambiguous
+    >>> ranges = archspec.cpu.MicroarchitectureRangeList
+    >>> len(ranges.from_string('mic_knl:'))
+    1
+    >>> ranges.from_string('mic_knl:').concrete is None
+    True
+    >>> str(ranges.from_string('mic_knl').concrete)
+    'mic_knl'
 
-In the currently modeled data all such pairs are in the ``aarch64`` family, and come from the
-``ampere1``/``ampere1a`` pair and the ``neoverse`` chips each having two parents. The ``x86_64``
-family is a lattice, so intersections there always succeed. Note that a bifurcation on its own
-is not a problem: ``cascadelake`` and ``cannonlake`` are not comparable, but ``icelake``
-descends from both and ``skylake`` precedes both, so their boundaries stay unambiguous.
+Use ``concrete`` rather than ``len(...) == 1`` for this, so that adding a descendant of
+``mic_knl`` to the database does not silently change what the client concludes.
 
 -----------------------------
 Compiler's Optimization Flags
