@@ -303,19 +303,33 @@ lower boundary is normalized to the family of the upper one:
     >>> str(archspec.cpu.MicroarchitectureRange.from_string(':skylake'))
     'x86_64:skylake'
 
-A bare name is the range holding that microarchitecture only, and ``{}`` is the empty range.
-A range whose boundaries coincide is rendered back as a bare name:
+A bare name is the range holding that microarchitecture only, and a range whose boundaries
+coincide is rendered back as a bare name:
 
 .. code-block:: python
 
     >>> str(archspec.cpu.MicroarchitectureRange.from_string('broadwell'))
     'broadwell'
 
-Ranges implement a "container" semantic over microarchitectures:
+A range always holds at least its own lower boundary, so it is never empty. Constructing one
+without any boundary is an error, and so is asking for the empty set in string form:
 
 .. code-block:: python
 
-    >>> uarch_range = archspec.cpu.microarchitecture_range(lo='broadwell', hi='skylake')
+    >>> archspec.cpu.MicroarchitectureRange()
+    Traceback (most recent call last):
+      File "<input>", line 1, in <module>
+    archspec.cpu.microarchitecture.InvalidRange: a range needs at least one boundary; the empty set of microarchitectures is an empty MicroarchitectureRangeList
+
+The empty set is a state a client can reach, but not one it can spell; see
+`Unions of ranges`_ below.
+
+A range can also be built from its boundaries directly, given either as names or as
+``Microarchitecture`` objects, and implements a "container" semantic over microarchitectures:
+
+.. code-block:: python
+
+    >>> uarch_range = archspec.cpu.MicroarchitectureRange(lo='broadwell', hi='skylake')
     >>> 'broadwell' in uarch_range
     True
     >>> 'skylake' in uarch_range
@@ -329,7 +343,7 @@ timeline, a range only ever holds microarchitectures on the paths between them:
 
 .. code-block:: python
 
-    >>> [str(x) for x in archspec.cpu.microarchitecture_range(lo='broadwell', hi='cascadelake')]
+    >>> [str(x) for x in archspec.cpu.MicroarchitectureRange(lo='broadwell', hi='cascadelake')]
     ['broadwell', 'skylake', 'skylake_avx512', 'cascadelake']
 
 Iteration is stable, and always yields the most generic microarchitectures first. ``cannonlake``
@@ -338,7 +352,7 @@ side of a bifurcation and is not an ancestor of ``cascadelake``:
 
 .. code-block:: python
 
-    >>> 'cannonlake' in archspec.cpu.microarchitecture_range(lo='broadwell', hi='cascadelake')
+    >>> 'cannonlake' in archspec.cpu.MicroarchitectureRange(lo='broadwell', hi='cascadelake')
     False
 
 One range can be compared to another with set semantics, to check whether it is entirely
@@ -346,8 +360,8 @@ contained in it:
 
 .. code-block:: python
 
-    >>> narrow = archspec.cpu.microarchitecture_range(lo='broadwell', hi='icelake')
-    >>> wide = archspec.cpu.microarchitecture_range(lo='x86_64_v2')
+    >>> narrow = archspec.cpu.MicroarchitectureRange(lo='broadwell', hi='icelake')
+    >>> wide = archspec.cpu.MicroarchitectureRange(lo='x86_64_v2')
     >>> narrow <= wide
     True
     >>> wide <= narrow
@@ -365,8 +379,8 @@ A range deliberately offers neither ``|`` nor ``&``:
 
 .. code-block:: python
 
-    >>> r1 = archspec.cpu.microarchitecture_range(lo='armv8.6a')
-    >>> r2 = archspec.cpu.microarchitecture_range(lo='neoverse_n1')
+    >>> r1 = archspec.cpu.MicroarchitectureRange(lo='armv8.6a')
+    >>> r2 = archspec.cpu.MicroarchitectureRange(lo='neoverse_n1')
     >>> r1 & r2
     Traceback (most recent call last):
       File "<input>", line 1, in <module>
@@ -407,9 +421,9 @@ because it spans two architecture families:
     >>> str(archspec.cpu.MicroarchitectureRangeList.from_string('x86_64_v2:skylake,zen4:'))
     'x86_64_v2:skylake,zen4:'
 
-Members are normalized on construction: empty members, duplicates and members contained in
-another member are dropped, and what is left is sorted, so that the string representation is
-stable and can be parsed back:
+Members are normalized on construction: duplicates and members contained in another member are
+dropped, and what is left is sorted, so that the string representation is stable and can be
+parsed back:
 
 .. code-block:: python
 
@@ -419,9 +433,70 @@ stable and can be parsed back:
 A union holds the microarchitectures of all its members, and can be compared to another union
 with the same set semantics as a single range.
 
-The reason for having this type is that, unlike a single range, a union *is* closed under
-intersection, so ``&`` is a **total** operation that never raises. It is defined on the pair from
-the previous section, which a single range cannot express:
+A bare ``:`` is accepted as a shorthand for *every* microarchitecture. Since the families are
+disjoint this is never a single range, but it is a perfectly good union, with one open range per
+family:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.MicroarchitectureRangeList.from_string(':'))
+    'aarch64:,arm:,ppc64:,ppc64le:,ppc:,ppcle:,riscv64:,sparc64:,sparc:,x86:,x86_64:'
+
+Note that this is a shorthand for input, and not a canonical form: it renders back as the
+explicit list above, and it covers the families present in the :ref:`cpu_json_database` when it
+is parsed. It is also only recognized as the whole string, never as one member of a comma
+separated list.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The empty set
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A union with no members is the empty set of microarchitectures, and since a range is never empty
+it is the only representation for it. A client reaches it by asking for it, or by narrowing a
+constraint down to nothing:
+
+.. code-block:: python
+
+    >>> ranges = archspec.cpu.MicroarchitectureRangeList
+    >>> ranges().empty
+    True
+    >>> str(ranges.from_string('broadwell:') & ranges.from_string('aarch64:'))
+    '{}'
+
+The ``{}`` is a display marker, so that an unsatisfiable result stays visible when it is
+interpolated into a message. It is deliberately **not** part of the string grammar, the same way
+there is no way to write an empty version range in a Spack spec:
+
+.. code-block:: python
+
+    >>> ranges.from_string('{}')
+    Traceback (most recent call last):
+      File "<input>", line 1, in <module>
+    archspec.cpu.microarchitecture.InvalidRange: the empty set of microarchitectures has no string representation, and can only be built as an empty MicroarchitectureRangeList
+
+The empty set and the ``:`` shorthand above are therefore the two values for which the
+round trip through ``str`` does not hold.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Set algebra on unions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The reason for having this type is that, unlike a single range, a union *is* closed under both
+operations, so ``|`` and ``&`` are **total** and never raise. Union is the straightforward one,
+since it only has to join the members and let normalization do the rest:
+
+.. code-block:: python
+
+    >>> l1 = archspec.cpu.MicroarchitectureRangeList.from_string('broadwell:skylake')
+    >>> l2 = archspec.cpu.MicroarchitectureRangeList.from_string('zen4:')
+    >>> str(l1 | l2)
+    'broadwell:skylake,zen4:'
+
+    >>> str(l1 | archspec.cpu.MicroarchitectureRangeList.from_string('x86_64:'))
+    'x86_64:'
+
+Intersection is the interesting one. It is defined on the pair from the previous section, which a
+single range cannot express:
 
 .. code-block:: python
 
@@ -441,11 +516,12 @@ so a union only ever grows extra members where it has to:
     >>> str(l1 & l2)
     'skylake:cascadelake'
 
-The result is exact over the *known* microarchitectures, which is the same caveat that
+An intersection is exact over the *known* microarchitectures, which is the same caveat that
 iteration over a range already carries. A microarchitecture added to the
 :ref:`cpu_json_database` in the future, descending from both ``armv8.6a`` and ``neoverse_n1``
 but from neither ``ampere1`` nor ``ampere1a``, would fall inside the intersection without being
-covered by any of the members above.
+covered by any of the members above. A union carries no such caveat, since it never has to
+recompute a boundary.
 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Recovering a single microarchitecture

@@ -12,14 +12,12 @@ from .microarchitecture import (
     InvalidCompilerVersion,
     InvalidRange,
     Microarchitecture,
-    MicroarchitectureRange,
-    MicroarchitectureRangeList,
     UnknownMicroarchitecture,
     UnsupportedMicroarchitecture,
     generic_microarchitecture,
-    microarchitecture_range,
     version_components,
 )
+from .ranges import MicroarchitectureRange, MicroarchitectureRangeList
 
 __all__ = [
     "brand_string",
@@ -35,6 +33,5 @@ __all__ = [
     "UnknownMicroarchitecture",
     "UnsupportedMicroarchitecture",
     "generic_microarchitecture",
-    "microarchitecture_range",
     "version_components",
 ]
