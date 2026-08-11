@@ -12,6 +12,7 @@ import archspec.cpu
 from archspec.cpu import (
     ArchspecError,
     InvalidRange,
+    InvalidType,
     Microarchitecture,
     MicroarchitectureRange,
     MicroarchitectureRangeList,
@@ -1140,3 +1141,113 @@ class TestIterationOrderIsMemoized:
             result = list(uarch_set)
             for index, uarch in enumerate(result):
                 assert not [x for x in result[:index] if uarch < x], f"{uarch} is out of order"
+
+
+class TestUnionMembersAreValidated:
+    """Tests that a union only accepts ranges as members, so that a mistake at the call site is
+    reported there instead of much later.
+    """
+
+    @pytest.mark.parametrize(
+        "members",
+        [
+            # A range is itself iterable, so passing one directly instead of a list of them
+            # would otherwise build a union of the microarchitectures it holds
+            MicroarchitectureRange.from_string("broadwell:skylake"),
+            # A string is iterable too, one character at a time
+            "x86_64:",
+            [archspec.cpu.TARGETS["broadwell"]],
+            ["broadwell:skylake"],
+            [MicroarchitectureRange.from_string("broadwell:"), None],
+        ],
+    )
+    def test_constructing_a_union_from_something_else_raises(self, members):
+        """Tests that building a union out of anything but ranges raises a TypeError."""
+        with pytest.raises(TypeError, match="only objects of MicroarchitectureRange type"):
+            MicroarchitectureRangeList(members)
+
+    def test_ranges_are_still_accepted(self):
+        """Tests that the check does not reject the values the union is meant to hold, whether
+        they come from a list or from a generator.
+        """
+        ranges = [
+            MicroarchitectureRange.from_string("broadwell:skylake"),
+            MicroarchitectureRange.from_string("ampere1:"),
+        ]
+        from_list = MicroarchitectureRangeList(ranges)
+        from_generator = MicroarchitectureRangeList(x for x in ranges)
+
+        assert from_list == from_generator
+        assert str(from_list) == "ampere1:,broadwell:skylake"
+
+
+class TestMalformedRangeLists:
+    """Tests that a list with an empty member is reported as a malformed list, and not as an
+    unknown microarchitecture named ''.
+    """
+
+    @pytest.mark.parametrize(
+        "list_str",
+        [
+            "broadwell:,",
+            ",broadwell:",
+            "x86_64:,,zen4:",
+            "broadwell:skylake, ,ampere1:",
+            ",",
+        ],
+    )
+    def test_an_empty_member_raises_invalid_range(self, list_str):
+        """Tests that an empty member, e.g. from a trailing comma, raises InvalidRange."""
+        with pytest.raises(InvalidRange, match="one of its members is empty"):
+            MicroarchitectureRangeList.from_string(list_str)
+
+    @pytest.mark.parametrize("list_str", ["", "   "])
+    def test_the_empty_string_is_not_the_empty_set(self, list_str):
+        """Tests that the empty string is rejected like '{}' is, since the empty set has no
+        string representation.
+        """
+        with pytest.raises(InvalidRange, match="has no string representation"):
+            MicroarchitectureRangeList.from_string(list_str)
+
+    def test_a_valid_list_is_unaffected(self):
+        """Tests that whitespace around members is still accepted, and that the check does not
+        reject a list that merely holds a range with an omitted boundary.
+        """
+        uarch_list = MicroarchitectureRangeList.from_string(" broadwell: , :ampere1 ")
+        assert str(uarch_list) == "aarch64:ampere1,broadwell:"
+
+
+class TestInvalidTypeIsAnArchspecError:
+    """Tests that both types raise the archspec error when handed an object of the wrong type,
+    so that ``except ArchspecError`` covers every error the package raises.
+    """
+
+    def test_a_bad_boundary_raises_invalid_type(self):
+        """Tests that a boundary that is neither a name nor a Microarchitecture raises
+        InvalidType.
+        """
+        with pytest.raises(InvalidType, match="only objects of string or Microarchitecture"):
+            MicroarchitectureRange(lo=1)
+
+    def test_a_bad_union_member_raises_invalid_type(self):
+        """Tests that a union member that is not a range raises InvalidType."""
+        with pytest.raises(InvalidType, match="only objects of MicroarchitectureRange type"):
+            MicroarchitectureRangeList([archspec.cpu.TARGETS["broadwell"]])
+
+    def test_a_bad_membership_test_raises_invalid_type(self):
+        """Tests that testing membership of something that is not a microarchitecture raises
+        InvalidType, for both a range and a union.
+        """
+        for uarch_set in (
+            MicroarchitectureRange.from_string("x86_64:"),
+            MicroarchitectureRangeList.from_string("x86_64:"),
+        ):
+            with pytest.raises(InvalidType, match="only objects of string or Microarchitecture"):
+                _ = 1 in uarch_set
+
+    def test_invalid_type_is_still_a_type_error(self):
+        """Tests that the exception keeps TypeError as a base, so existing callers that catch
+        TypeError are unaffected.
+        """
+        assert issubclass(InvalidType, TypeError)
+        assert issubclass(InvalidType, ArchspecError)

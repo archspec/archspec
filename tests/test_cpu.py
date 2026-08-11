@@ -16,7 +16,12 @@ import archspec.cpu
 import archspec.cpu.alias
 import archspec.cpu.detect
 import archspec.cpu.schema
-from archspec.cpu import ArchspecError, Microarchitecture, UnknownMicroarchitecture
+from archspec.cpu import (
+    ArchspecError,
+    InvalidType,
+    Microarchitecture,
+    UnknownMicroarchitecture,
+)
 
 
 @pytest.fixture(
@@ -735,3 +740,22 @@ class TestUnknownMicroarchitectureErrors:
         """
         assert issubclass(UnknownMicroarchitecture, ValueError)
         assert issubclass(UnknownMicroarchitecture, ArchspecError)
+
+
+class TestInvalidTypeIsAnArchspecError:
+    """Tests that passing an object of the wrong type raises the archspec error, so that
+    ``except ArchspecError`` covers every error the package raises.
+    """
+
+    def test_a_non_string_feature_raises_invalid_type(self):
+        """Tests that testing membership of a non-string feature raises InvalidType."""
+        broadwell = archspec.cpu.TARGETS["broadwell"]
+        with pytest.raises(InvalidType, match="only objects of string types"):
+            _ = 1 in broadwell
+
+    def test_invalid_type_is_still_a_type_error(self):
+        """Tests that the exception keeps TypeError as a base, so existing callers that catch
+        TypeError are unaffected.
+        """
+        assert issubclass(InvalidType, TypeError)
+        assert issubclass(InvalidType, ArchspecError)

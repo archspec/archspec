@@ -185,7 +185,7 @@ class Microarchitecture:
         # Feature must be of a string type, so be defensive about that
         if not isinstance(feature, str):
             msg = "only objects of string types are accepted [got {0}]"
-            raise TypeError(msg.format(str(type(feature))))
+            raise InvalidType(msg.format(str(type(feature))))
 
         # Here we look first in the raw features, and fall-back to
         # feature aliases if not match was found
@@ -455,4 +455,12 @@ class UnknownMicroarchitecture(ArchspecError, ValueError):
 
     Inherits from ValueError for backward compatibility, so that callers can catch every parsing
     failure with ``except ArchspecError`` without also swallowing unrelated errors.
+    """
+
+
+class InvalidType(ArchspecError, TypeError):
+    """Raised when an object of the wrong type is passed to an archspec API.
+
+    Inherits from TypeError for backward compatibility, and so that ``except ArchspecError``
+    covers every error archspec raises, rather than every error but this one.
     """

@@ -10,7 +10,7 @@ they are total.
 """
 from typing import FrozenSet, Iterable, Iterator, List, Optional, Tuple, Union
 
-from .microarchitecture import TARGETS, InvalidRange, Microarchitecture
+from .microarchitecture import TARGETS, InvalidRange, InvalidType, Microarchitecture
 
 
 def _topological_order(
@@ -29,7 +29,7 @@ def _as_microarchitecture(item: Union[str, Microarchitecture]) -> Microarchitect
     a ``Microarchitecture`` already.
 
     Raises:
-        TypeError: if the item is neither a string nor a Microarchitecture
+        InvalidType: if the item is neither a string nor a Microarchitecture
         UnknownMicroarchitecture: if the name is not a known microarchitecture
     """
     if isinstance(item, str):
@@ -37,7 +37,7 @@ def _as_microarchitecture(item: Union[str, Microarchitecture]) -> Microarchitect
 
     if not isinstance(item, Microarchitecture):
         msg = "only objects of string or Microarchitecture types are accepted [got {0}]"
-        raise TypeError(msg.format(str(type(item))))
+        raise InvalidType(msg.format(str(type(item))))
 
     return item
 
@@ -94,7 +94,7 @@ class MicroarchitectureRange:
         Raises:
             InvalidRange: If the provided range boundaries are not consistent, or if both
                 boundaries are None
-            TypeError: If a boundary is neither a string nor a Microarchitecture
+            InvalidType: If a boundary is neither a string nor a Microarchitecture
             UnknownMicroarchitecture: If a boundary name is not a known microarchitecture
         """
         lower = None if lo is None else _as_microarchitecture(lo)
@@ -340,9 +340,18 @@ class MicroarchitectureRangeList:
 
         Args:
             ranges: the ranges to be joined in a union
+
+        Raises:
+            InvalidType: If a member is not a MicroarchitectureRange
         """
         unique: List[MicroarchitectureRange] = []
         for current in ranges:
+            # A range is itself iterable, so a caller passing a single one instead of a list of
+            # them would otherwise build a union of microarchitectures, and only fail much later
+            if not isinstance(current, MicroarchitectureRange):
+                msg = "only objects of MicroarchitectureRange type are accepted [got {0}]"
+                raise InvalidType(msg.format(str(type(current))))
+
             if current in unique:
                 continue
             unique.append(current)
@@ -477,11 +486,11 @@ class MicroarchitectureRangeList:
         shorthand rather than a canonical form: the union it returns renders as the explicit list
         of families, and covers the families known to the JSON database at the time of the call.
 
-        The empty set has no string representation, so ``{}`` is rejected by the member parser.
-        Build it as ``MicroarchitectureRangeList()``.
+        The empty set has no string representation, so both ``{}`` and the empty string are
+        rejected. Build it as ``MicroarchitectureRangeList()``.
 
         Raises:
-            InvalidRange: if one of the members is not a valid range
+            InvalidRange: if the list is malformed, or if one of its members is not a valid range
             ValueError: if a boundary is not a valid microarchitecture name
         """
         list_str = list_str.strip()
@@ -490,9 +499,19 @@ class MicroarchitectureRangeList:
                 MicroarchitectureRange(lo=x) for x in _family_roots()
             )
 
-        return MicroarchitectureRangeList(
-            MicroarchitectureRange.from_string(x) for x in list_str.split(",")
-        )
+        if not list_str:
+            raise InvalidRange(_EMPTY_SET_IS_NOT_A_RANGE)
+
+        members = [x.strip() for x in list_str.split(",")]
+        # Caught here rather than in the member parser, which would report an unknown
+        # microarchitecture named '' and point away from the malformed list
+        if not all(members):
+            raise InvalidRange(
+                f"'{list_str}' is not a valid list of microarchitecture ranges, since one of "
+                f"its members is empty"
+            )
+
+        return MicroarchitectureRangeList(MicroarchitectureRange.from_string(x) for x in members)
 
     def __repr__(self) -> str:
         return f"{self.__class__.__name__}({list(self.ranges)!r})"
