@@ -279,9 +279,9 @@ microarchitectures as DAGs permits to implement set comparison among them:
 
 .. _cpu_microarchitecture_ranges:
 
-------------------------------
+----------------------------
 Ranges of microarchitectures
-------------------------------
+----------------------------
 
 Since microarchitectures are ordered, a client can express a constraint like "``broadwell``
 or better, up to ``skylake``" as a range, instead of enumerating every microarchitecture that
@@ -338,8 +338,8 @@ A range can also be built from its boundaries directly, given either as names or
     False
 
 Note that ``haswell`` is *not* in the range above, since it is an ancestor of ``broadwell`` and
-therefore below the lower boundary. Because the boundaries follow the DAG rather than a release
-timeline, a range only ever holds microarchitectures on the paths between them:
+therefore below the lower boundary. A range only ever holds microarchitectures on the paths between
+the two boundaries:
 
 .. code-block:: python
 
@@ -408,9 +408,9 @@ family is a lattice. Note that a bifurcation on its own is not a problem: ``casc
 ``cannonlake`` are not comparable, but ``icelake`` descends from both and ``skylake`` precedes
 both, so their boundaries stay unambiguous.
 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
 Unions of ranges
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
 
 A ``MicroarchitectureRangeList`` is a union of ranges, written as a comma separated list. It is
 what a client needs when a constraint cannot be expressed as a single interval, for instance

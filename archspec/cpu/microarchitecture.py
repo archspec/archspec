@@ -451,16 +451,8 @@ class InvalidRange(ArchspecError, ValueError):
 
 
 class UnknownMicroarchitecture(ArchspecError, ValueError):
-    """Raised when a name does not correspond to any known micro-architecture.
-
-    Inherits from ValueError for backward compatibility, so that callers can catch every parsing
-    failure with ``except ArchspecError`` without also swallowing unrelated errors.
-    """
+    """Raised when a name does not correspond to any known micro-architecture."""
 
 
 class InvalidType(ArchspecError, TypeError):
-    """Raised when an object of the wrong type is passed to an archspec API.
-
-    Inherits from TypeError for backward compatibility, and so that ``except ArchspecError``
-    covers every error archspec raises, rather than every error but this one.
-    """
+    """Raised when an object of the wrong type is passed to an archspec API."""
