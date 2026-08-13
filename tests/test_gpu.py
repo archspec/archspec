@@ -5,12 +5,24 @@
 import json
 import subprocess
 
+import jsonschema
 import pytest
 
+import archspec.gpu
 import archspec.gpu.amd
 import archspec.gpu.detect
 import archspec.gpu.generic
 import archspec.gpu.nvidia
+import archspec.gpu.schema
+
+
+# --- JSON data ---
+
+
+def test_validate_json_files():
+    jsonschema.validate(
+        archspec.gpu.schema.DETECTION_JSON.data, archspec.gpu.schema.DETECTION_JSON_SCHEMA.data
+    )
 
 
 def make_pci_devices(root, devices):
@@ -108,7 +120,7 @@ def test_nvidia_pci_device_id_parsing(combined, expected):
     assert archspec.gpu.nvidia._parse_pci_device_id(combined) == expected
 
 
-@pytest.mark.parametrize("bad_id", ["0x2C0210", "2C0210DE00", "0xZZZZ10DE0"])
+@pytest.mark.parametrize("bad_id", ["0x2C0210", "2C0210DE00", "0xZZZZ10DE0", "0xZZZZ10DE"])
 def test_nvidia_pci_device_id_invalid(bad_id):
     """Test that a malformed PCI device ID raises ValueError."""
     with pytest.raises(ValueError):
@@ -304,3 +316,70 @@ def test_host_does_not_collapse_identical_gpus(tmp_path, monkeypatch):
 
     assert len(gpus) == 2
     assert all(g.brand_string == "NVIDIA H100" for g in gpus)
+
+
+# --- Python API: GPUMicroarch serialization and equality ---
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {},
+        {
+            "name": "sm_90",
+            "brand_string": "NVIDIA H100 PCIe",
+            "vendor": "nvidia",
+            "driver_version": "550.54.15",
+            "vendor_pci_code": "0x10de",
+            "component_pci_code": "0x2330",
+            "compute_capability": "sm_90",
+        },
+        {
+            "name": "gfx942",
+            "brand_string": "AMD Instinct MI300A",
+            "vendor": "amd",
+            "driver_version": "6.16.13",
+            "vendor_pci_code": "0x1002",
+            "component_pci_code": "0x74a0",
+            "gfx_target": "gfx942",
+        },
+    ],
+)
+def test_round_trip_dict(kwargs):
+    """A GPUMicroarch survives a round trip through to_dict/from_dict."""
+    gpu = archspec.gpu.GPUMicroarch(**kwargs)
+    assert archspec.gpu.GPUMicroarch.from_dict(gpu.to_dict()) == gpu
+
+
+def test_equality_and_hash():
+    """Equal GPUMicroarch objects compare equal, hash equal, and deduplicate in sets."""
+    kwargs = {
+        "name": "gfx942",
+        "vendor": "amd",
+        "vendor_pci_code": "0x1002",
+        "component_pci_code": "0x74a0",
+    }
+    first = archspec.gpu.GPUMicroarch(**kwargs)
+    second = archspec.gpu.GPUMicroarch(**kwargs)
+    other_driver = archspec.gpu.GPUMicroarch(**kwargs, driver_version="6.16.13")
+
+    assert first == second
+    assert hash(first) == hash(second)
+    assert first != other_driver
+    assert first != "gfx942"
+    assert len({first, second}) == 1
+
+
+def test_host_returns_gpu_microarch_objects(tmp_path, monkeypatch):
+    """The public host() entry point yields GPUMicroarch instances."""
+    make_pci_devices(tmp_path, [("0x030000", "0x1002", "0x164e")])
+    monkeypatch.setattr(archspec.gpu.generic, "SYSFS_PCI_DEVICES", str(tmp_path))
+    monkeypatch.setattr(archspec.gpu.detect.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(archspec.gpu.detect.shutil, "which", mock_which())
+    archspec.gpu.detect.host.cache_clear()
+
+    gpus = archspec.gpu.host()
+
+    assert gpus
+    assert all(isinstance(g, archspec.gpu.GPUMicroarch) for g in gpus)
+    assert all(archspec.gpu.GPUMicroarch.from_dict(g.to_dict()) == g for g in gpus)

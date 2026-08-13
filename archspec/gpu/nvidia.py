@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """Detection of NVIDIA GPUs through the nvidia-smi toolchain."""
 
+import string
 import subprocess
 import warnings
 from typing import List, Tuple
@@ -39,6 +40,12 @@ def _parse_pci_device_id(combined_id: str) -> Tuple[str, str]:
         )
 
     hex_digits = combined_id[2:]
+    if not all(c in string.hexdigits for c in hex_digits):
+        raise ValueError(
+            "invalid PCI device ID: expected 10-character '0x'-prefixed hex"
+            f" string, got {combined_id!r}"
+        )
+
     return (f"0x{hex_digits[:4]}".lower(), f"0x{hex_digits[4:]}".lower())
 
 

@@ -9,7 +9,7 @@ import subprocess
 import warnings
 from typing import List
 
-from .generic import GPU_VENDORS
+from . import schema
 from .gpu_microarch import GPUMicroarch
 
 
@@ -43,7 +43,9 @@ def smi_info() -> List[GPUMicroarch]:
 
     # AMD's PCI vendor code is not reported by rocm-smi, so derive it from the
     # known vendor mapping the same way the ``vendor`` field is hardcoded.
-    vendor_pci_code = next(code for code, name in GPU_VENDORS.items() if name == "amd")
+    vendor_pci_code = next(
+        code for code, name in schema.DETECTION_JSON["vendors"].items() if name == "amd"
+    )
 
     # The driver version is reported once for the whole system rather than
     # per-card, under a top-level "system" entry.

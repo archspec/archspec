@@ -4,6 +4,8 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """Defines the GPUMicroarch class, describing a detected GPU microarchitecture."""
 
+from typing import Dict
+
 
 class GPUMicroarch:
     """Specific GPU Microarchitecture"""
@@ -45,6 +47,14 @@ class GPUMicroarch:
         # Only relevant for AMD
         self.gfx_target = gfx_target
 
+    def __eq__(self, other):
+        if not isinstance(other, GPUMicroarch):
+            return NotImplemented
+        return vars(self) == vars(other)
+
+    def __hash__(self) -> int:
+        return hash((self.vendor, self.vendor_pci_code, self.component_pci_code, self.name))
+
     def __repr__(self) -> str:
         fields = ", ".join(
             f"{field}={value!r}" for field, value in vars(self).items() if value != ""
@@ -67,3 +77,30 @@ class GPUMicroarch:
                 detail += f"{field}: {value}\n"
 
         return detail.strip()
+
+    def to_dict(self) -> Dict[str, str]:
+        """Returns a dictionary representation of this object."""
+        return {
+            "name": self.name,
+            "brand_string": self.brand_string,
+            "vendor": self.vendor,
+            "driver_version": self.driver_version,
+            "vendor_pci_code": self.vendor_pci_code,
+            "component_pci_code": self.component_pci_code,
+            "compute_capability": self.compute_capability,
+            "gfx_target": self.gfx_target,
+        }
+
+    @staticmethod
+    def from_dict(data) -> "GPUMicroarch":
+        """Construct a GPU microarchitecture from a dictionary representation."""
+        return GPUMicroarch(
+            name=data.get("name", ""),
+            brand_string=data.get("brand_string", ""),
+            vendor=data.get("vendor", ""),
+            driver_version=data.get("driver_version", ""),
+            vendor_pci_code=data.get("vendor_pci_code", ""),
+            component_pci_code=data.get("component_pci_code", ""),
+            compute_capability=data.get("compute_capability", ""),
+            gfx_target=data.get("gfx_target", ""),
+        )
