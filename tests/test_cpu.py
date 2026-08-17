@@ -16,7 +16,12 @@ import archspec.cpu
 import archspec.cpu.alias
 import archspec.cpu.detect
 import archspec.cpu.schema
-from archspec.cpu import Microarchitecture
+from archspec.cpu import (
+    ArchspecError,
+    InvalidType,
+    Microarchitecture,
+    UnknownMicroarchitecture,
+)
 
 
 @pytest.fixture(
@@ -689,3 +694,68 @@ def test_why_not_wrong_family(monkeypatch):
         target_family=str(archspec.cpu.TARGETS["power8"].family),
         host_family="x86_64",
     )
+
+
+class TestMicroarchitectureNodeSet:
+    """Tests the memoized set of DAG nodes that backs every comparison between
+    microarchitectures.
+    """
+
+    def test_the_node_set_is_memoized_and_immutable(self):
+        """Tests that the set of nodes is computed once and cannot be mutated by a caller, since
+        it is shared by every later comparison.
+        """
+        uarch = archspec.cpu.TARGETS["broadwell"]
+        first = uarch._to_set()  # pylint: disable=protected-access
+        second = uarch._to_set()  # pylint: disable=protected-access
+
+        assert first is second
+        assert isinstance(first, frozenset)
+        assert first == {"broadwell"} | {str(x) for x in uarch.ancestors}
+
+
+class TestUnknownMicroarchitectureErrors:
+    """Tests that looking up an unknown microarchitecture is catchable as an ArchspecError."""
+
+    def test_unknown_name_from_microarchitecture(self):
+        """Tests that an unknown name raises UnknownMicroarchitecture, so a caller can catch
+        ArchspecError instead of a bare ValueError.
+        """
+        with pytest.raises(UnknownMicroarchitecture, match="unknown micro-architecture"):
+            Microarchitecture.from_string("not_a_target")
+
+    def test_unknown_name_in_a_comparison(self):
+        """Tests that comparing against an unknown name also raises an ArchspecError, rather than
+        the bare ValueError the coercion decorator used to produce.
+
+        The message is the one from ``Microarchitecture.from_string``, which the decorator
+        delegates to, so there is a single wording for an unknown name.
+        """
+        with pytest.raises(UnknownMicroarchitecture, match="unknown micro-architecture"):
+            _ = archspec.cpu.TARGETS["broadwell"] <= "not_a_target"
+
+    def test_unknown_microarchitecture_is_still_a_value_error(self):
+        """Tests that the exception keeps ValueError as a base, so existing callers that catch
+        ValueError are unaffected.
+        """
+        assert issubclass(UnknownMicroarchitecture, ValueError)
+        assert issubclass(UnknownMicroarchitecture, ArchspecError)
+
+
+class TestInvalidTypeIsAnArchspecError:
+    """Tests that passing an object of the wrong type raises the archspec error, so that
+    ``except ArchspecError`` covers every error the package raises.
+    """
+
+    def test_a_non_string_feature_raises_invalid_type(self):
+        """Tests that testing membership of a non-string feature raises InvalidType."""
+        broadwell = archspec.cpu.TARGETS["broadwell"]
+        with pytest.raises(InvalidType, match="only objects of string types"):
+            _ = 1 in broadwell
+
+    def test_invalid_type_is_still_a_type_error(self):
+        """Tests that the exception keeps TypeError as a base, so existing callers that catch
+        TypeError are unaffected.
+        """
+        assert issubclass(InvalidType, TypeError)
+        assert issubclass(InvalidType, ArchspecError)

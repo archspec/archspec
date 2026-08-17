@@ -8,20 +8,31 @@ CPU microarchitectures.
 from .detect import brand_string, host, why_not
 from .microarchitecture import (
     TARGETS,
+    ArchspecError,
     InvalidCompilerVersion,
+    InvalidRange,
+    InvalidType,
     Microarchitecture,
+    UnknownMicroarchitecture,
     UnsupportedMicroarchitecture,
     generic_microarchitecture,
     version_components,
 )
+from .ranges import MicroarchitectureRange, MicroarchitectureRangeList
 
 __all__ = [
     "brand_string",
     "host",
     "why_not",
     "TARGETS",
+    "ArchspecError",
     "InvalidCompilerVersion",
+    "InvalidRange",
+    "InvalidType",
     "Microarchitecture",
+    "MicroarchitectureRange",
+    "MicroarchitectureRangeList",
+    "UnknownMicroarchitecture",
     "UnsupportedMicroarchitecture",
     "generic_microarchitecture",
     "version_components",
