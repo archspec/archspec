@@ -8,7 +8,7 @@ import platform
 import re
 import sys
 import warnings
-from typing import IO, Any, Dict, List, Optional, Set, Tuple, Union
+from typing import IO, Any, Dict, FrozenSet, List, Optional, Set, Tuple, Union
 
 from . import schema
 from .alias import FEATURE_ALIASES
@@ -22,11 +22,10 @@ def coerce_target_names(func):
 
     @functools.wraps(func)
     def _impl(self, other):
+        # Objects of other types are passed through, so that comparisons can return
+        # NotImplemented instead of raising
         if isinstance(other, str):
-            if other not in TARGETS:
-                msg = '"{0}" is not a valid target name'
-                raise ValueError(msg.format(other))
-            other = TARGETS[other]
+            other = Microarchitecture.from_string(other)
 
         return func(self, other)
 
@@ -92,6 +91,8 @@ class Microarchitecture:
         self._generic: Optional["Microarchitecture"] = None
         # Cache the "family" computation
         self._family: Optional["Microarchitecture"] = None
+        # Cache the set of nodes in this DAG, which is used by every comparison
+        self._set: Optional[FrozenSet[str]] = None
 
         # ssse3 implies sse3; on Linux sse3 is not mentioned in /proc/cpuinfo, so add it ad-hoc.
         if "ssse3" in self.features:
@@ -107,11 +108,14 @@ class Microarchitecture:
             self._ancestors = value
         return self._ancestors
 
-    def _to_set(self) -> Set[str]:
+    def _to_set(self) -> FrozenSet[str]:
         """Returns a set of the nodes in this microarchitecture DAG."""
-        # This function is used to implement subset semantics with
-        # comparison operators
-        return set([str(self)] + [str(x) for x in self.ancestors])
+        # This function is used to implement subset semantics with comparison operators, and is
+        # memoized since comparing microarchitectures is a hot operation. The parents of a
+        # microarchitecture never change after construction, so the value stays valid.
+        if self._set is None:
+            self._set = frozenset([str(self)] + [str(x) for x in self.ancestors])
+        return self._set
 
     @coerce_target_names
     def __eq__(self, other: Union[str, "Microarchitecture"]) -> bool:
@@ -181,7 +185,7 @@ class Microarchitecture:
         # Feature must be of a string type, so be defensive about that
         if not isinstance(feature, str):
             msg = "only objects of string types are accepted [got {0}]"
-            raise TypeError(msg.format(str(type(feature))))
+            raise InvalidType(msg.format(str(type(feature))))
 
         # Here we look first in the raw features, and fall-back to
         # feature aliases if not match was found
@@ -236,6 +240,17 @@ class Microarchitecture:
             generation=data.get("generation", 0),
             cpu_part=data.get("cpupart", ""),
         )
+
+    @staticmethod
+    def from_string(name: str) -> "Microarchitecture":
+        """Returns a micro-architecture from its name.
+
+        Raises:
+            UnknownMicroarchitecture: if the name is not a valid microarchitecture
+        """
+        if name not in TARGETS:
+            raise UnknownMicroarchitecture(f"unknown micro-architecture '{name}'")
+        return TARGETS[name]
 
     def optimization_flags(self, compiler: str, version: str) -> str:
         """Returns a string containing the optimization flags that needs to be used to produce
@@ -429,3 +444,15 @@ class UnsupportedMicroarchitecture(ArchspecError, ValueError):
 
 class InvalidCompilerVersion(ArchspecError, ValueError):
     """Raised when an invalid format is used for compiler versions in archspec."""
+
+
+class InvalidRange(ArchspecError, ValueError):
+    """Raised when an invalid range is constructed."""
+
+
+class UnknownMicroarchitecture(ArchspecError, ValueError):
+    """Raised when a name does not correspond to any known micro-architecture."""
+
+
+class InvalidType(ArchspecError, TypeError):
+    """Raised when an object of the wrong type is passed to an archspec API."""

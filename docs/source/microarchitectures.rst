@@ -277,6 +277,287 @@ microarchitectures as DAGs permits to implement set comparison among them:
     >>> archspec.cpu.TARGETS['nehalem'] > archspec.cpu.TARGETS['a64fx']
     False
 
+.. _cpu_microarchitecture_ranges:
+
+----------------------------
+Ranges of microarchitectures
+----------------------------
+
+Since microarchitectures are ordered, a client can express a constraint like "``broadwell``
+or better, up to ``skylake``" as a range, instead of enumerating every microarchitecture that
+satisfies it. A ``MicroarchitectureRange`` holds every microarchitecture between a lower and an
+upper boundary, and can be built from a string:
+
+.. code-block:: python
+
+    >>> import archspec.cpu
+    >>> archspec.cpu.MicroarchitectureRange.from_string('broadwell:skylake')
+    MicroarchitectureRange(lo=Microarchitecture('broadwell'), hi=Microarchitecture('skylake'))
+
+Either boundary can be omitted. A missing upper boundary leaves the range open, so it also
+matches microarchitectures added to the :ref:`cpu_json_database` in the future, while a missing
+lower boundary is normalized to the family of the upper one:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.MicroarchitectureRange.from_string(':skylake'))
+    'x86_64:skylake'
+
+A bare name is the range holding that microarchitecture only, and a range whose boundaries
+coincide is rendered back as a bare name:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.MicroarchitectureRange.from_string('broadwell'))
+    'broadwell'
+
+A range always holds at least its own lower boundary, so it is never empty. Constructing one
+without any boundary is an error, and so is asking for the empty set in string form:
+
+.. code-block:: python
+
+    >>> archspec.cpu.MicroarchitectureRange()
+    Traceback (most recent call last):
+      File "<input>", line 1, in <module>
+    archspec.cpu.microarchitecture.InvalidRange: a range needs at least one boundary; the empty set of microarchitectures is an empty MicroarchitectureRangeList
+
+The empty set is a state a client can reach, but not one it can spell; see
+`Unions of ranges`_ below.
+
+A range can also be built from its boundaries directly, given either as names or as
+``Microarchitecture`` objects, and implements a "container" semantic over microarchitectures:
+
+.. code-block:: python
+
+    >>> uarch_range = archspec.cpu.MicroarchitectureRange(lo='broadwell', hi='skylake')
+    >>> 'broadwell' in uarch_range
+    True
+    >>> 'skylake' in uarch_range
+    True
+    >>> 'zen2' in uarch_range
+    False
+
+Note that ``haswell`` is *not* in the range above, since it is an ancestor of ``broadwell`` and
+therefore below the lower boundary. A range only ever holds microarchitectures on the paths between
+the two boundaries:
+
+.. code-block:: python
+
+    >>> [str(x) for x in archspec.cpu.MicroarchitectureRange(lo='broadwell', hi='cascadelake')]
+    ['broadwell', 'skylake', 'skylake_avx512', 'cascadelake']
+
+Iteration is stable, and always yields the most generic microarchitectures first. ``cannonlake``
+is missing from that list even though it descends from ``skylake``, because it sits on the other
+side of a bifurcation and is not an ancestor of ``cascadelake``:
+
+.. code-block:: python
+
+    >>> 'cannonlake' in archspec.cpu.MicroarchitectureRange(lo='broadwell', hi='cascadelake')
+    False
+
+One range can be compared to another with set semantics, to check whether it is entirely
+contained in it:
+
+.. code-block:: python
+
+    >>> narrow = archspec.cpu.MicroarchitectureRange(lo='broadwell', hi='icelake')
+    >>> wide = archspec.cpu.MicroarchitectureRange(lo='x86_64_v2')
+    >>> narrow <= wide
+    True
+    >>> wide <= narrow
+    False
+
+Ranges are compared by their boundaries, and not by the microarchitectures they happen to hold
+today, so that comparisons stay stable as the JSON database grows. Two ranges can also be
+incomparable, since containment is a partial order.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Why a single range is not closed under set algebra
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A range deliberately offers neither ``|`` nor ``&``:
+
+.. code-block:: python
+
+    >>> r1 = archspec.cpu.MicroarchitectureRange(lo='armv8.6a')
+    >>> r2 = archspec.cpu.MicroarchitectureRange(lo='neoverse_n1')
+    >>> r1 & r2
+    Traceback (most recent call last):
+      File "<input>", line 1, in <module>
+    TypeError: unsupported operand type(s) for &: 'MicroarchitectureRange' and 'MicroarchitectureRange'
+
+The reason is that microarchitectures form a partial order, but **not a lattice**: two of them
+need not have a unique closest common ancestor or descendant. When that happens the intersection
+of two ranges is a perfectly well-defined *set* of microarchitectures that has no unique
+boundary, and so is not a range at all.
+
+The pair above is the canonical case. ``armv8.6a`` and ``neoverse_n1`` are not comparable, and
+the microarchitectures above both of them are ``ampere1`` and ``ampere1a``, which are not
+comparable either, so the result has two minimal elements instead of one. Swapping the
+boundaries gives the mirror case, where the microarchitectures below both ``ampere1`` and
+``ampere1a`` have two maximal elements.
+
+Union has the same problem, more obviously: two ranges from different architecture families
+have nothing in between to interpolate over.
+
+Rather than offer an operation that fails on some inputs, or one that silently widens or narrows
+the answer, both operations live on the union type described below, where they are total. In the
+currently modeled data every such pair is in the ``aarch64`` family, coming from the
+``ampere1``/``ampere1a`` pair and the ``neoverse`` chips each having two parents; the ``x86_64``
+family is a lattice. Note that a bifurcation on its own is not a problem: ``cascadelake`` and
+``cannonlake`` are not comparable, but ``icelake`` descends from both and ``skylake`` precedes
+both, so their boundaries stay unambiguous.
+
+^^^^^^^^^^^^^^^^
+Unions of ranges
+^^^^^^^^^^^^^^^^
+
+A ``MicroarchitectureRangeList`` is a union of ranges, written as a comma separated list. It is
+what a client needs when a constraint cannot be expressed as a single interval, for instance
+because it spans two architecture families:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.MicroarchitectureRangeList.from_string('x86_64_v2:skylake,zen4:'))
+    'x86_64_v2:skylake,zen4:'
+
+Members are normalized on construction: duplicates and members contained in another member are
+dropped, and what is left is sorted, so that the string representation is stable and can be
+parsed back:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.MicroarchitectureRangeList.from_string('x86_64:,broadwell:skylake'))
+    'x86_64:'
+
+A union holds the microarchitectures of all its members, and can be compared to another union
+with the same set semantics as a single range.
+
+A bare ``:`` is accepted as a shorthand for *every* microarchitecture. Since the families are
+disjoint this is never a single range, but it is a perfectly good union, with one open range per
+family:
+
+.. code-block:: python
+
+    >>> str(archspec.cpu.MicroarchitectureRangeList.from_string(':'))
+    'aarch64:,arm:,ppc64:,ppc64le:,ppc:,ppcle:,riscv64:,sparc64:,sparc:,x86:,x86_64:'
+
+Note that this is a shorthand for input, and not a canonical form: it renders back as the
+explicit list above, and it covers the families present in the :ref:`cpu_json_database` when it
+is parsed. It is also only recognized as the whole string, never as one member of a comma
+separated list.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+The empty set
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A union with no members is the empty set of microarchitectures, and since a range is never empty
+it is the only representation for it. A client reaches it by asking for it, or by narrowing a
+constraint down to nothing:
+
+.. code-block:: python
+
+    >>> ranges = archspec.cpu.MicroarchitectureRangeList
+    >>> ranges().empty
+    True
+    >>> str(ranges.from_string('broadwell:') & ranges.from_string('aarch64:'))
+    '{}'
+
+The ``{}`` is a display marker, so that an unsatisfiable result stays visible when it is
+interpolated into a message. It is deliberately **not** part of the string grammar, the same way
+there is no way to write an empty version range in a Spack spec:
+
+.. code-block:: python
+
+    >>> ranges.from_string('{}')
+    Traceback (most recent call last):
+      File "<input>", line 1, in <module>
+    archspec.cpu.microarchitecture.InvalidRange: the empty set of microarchitectures has no string representation, and can only be built as an empty MicroarchitectureRangeList
+
+The empty set and the ``:`` shorthand above are therefore the two values for which the
+round trip through ``str`` does not hold.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Set algebra on unions
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The reason for having this type is that, unlike a single range, a union *is* closed under both
+operations, so ``|`` and ``&`` are **total** and never raise. Union is the straightforward one,
+since it only has to join the members and let normalization do the rest:
+
+.. code-block:: python
+
+    >>> l1 = archspec.cpu.MicroarchitectureRangeList.from_string('broadwell:skylake')
+    >>> l2 = archspec.cpu.MicroarchitectureRangeList.from_string('zen4:')
+    >>> str(l1 | l2)
+    'broadwell:skylake,zen4:'
+
+    >>> str(l1 | archspec.cpu.MicroarchitectureRangeList.from_string('x86_64:'))
+    'x86_64:'
+
+Intersection is the interesting one. It is defined on the pair from the previous section, which a
+single range cannot express:
+
+.. code-block:: python
+
+    >>> l1 = archspec.cpu.MicroarchitectureRangeList.from_string('armv8.6a:')
+    >>> l2 = archspec.cpu.MicroarchitectureRangeList.from_string('neoverse_n1:')
+    >>> str(l1 & l2)
+    'ampere1:,ampere1a:'
+
+The two minimal elements that leave the lower boundary ambiguous become two members of the union.
+When the intersection does have unique boundaries, the result is the single range between them,
+so a union only ever grows extra members where it has to:
+
+.. code-block:: python
+
+    >>> l1 = archspec.cpu.MicroarchitectureRangeList.from_string('skylake:icelake')
+    >>> l2 = archspec.cpu.MicroarchitectureRangeList.from_string('x86_64_v2:cascadelake')
+    >>> str(l1 & l2)
+    'skylake:cascadelake'
+
+An intersection is exact over the *known* microarchitectures, which is the same caveat that
+iteration over a range already carries. A microarchitecture added to the
+:ref:`cpu_json_database` in the future, descending from both ``armv8.6a`` and ``neoverse_n1``
+but from neither ``ampere1`` nor ``ampere1a``, would fall inside the intersection without being
+covered by any of the members above. A union carries no such caveat, since it never has to
+recompute a boundary.
+
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Recovering a single microarchitecture
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+A client that narrows a constraint down usually wants to know when only one microarchitecture is
+left, and to get that object back. Both a range and a union expose a ``concrete`` property, which
+returns the microarchitecture when the boundaries denote exactly one, and ``None`` otherwise:
+
+.. code-block:: python
+
+    >>> r1 = archspec.cpu.MicroarchitectureRangeList.from_string('x86_64:skylake')
+    >>> r2 = archspec.cpu.MicroarchitectureRangeList.from_string('skylake:icelake')
+    >>> (r1 & r2).concrete
+    Microarchitecture('skylake')
+
+The object returned is the one from :py:data:`archspec.cpu.TARGETS`, so features, vendor and
+compiler information are all still reachable through it.
+
+Note that this is deliberately *not* the same question as whether the range holds one
+microarchitecture today. ``mic_knl`` is concrete, while ``mic_knl:`` is not, even though
+``mic_knl`` currently has no descendant and both enumerate a single microarchitecture:
+
+.. code-block:: python
+
+    >>> ranges = archspec.cpu.MicroarchitectureRangeList
+    >>> len(ranges.from_string('mic_knl:'))
+    1
+    >>> ranges.from_string('mic_knl:').concrete is None
+    True
+    >>> str(ranges.from_string('mic_knl').concrete)
+    'mic_knl'
+
+Use ``concrete`` rather than ``len(...) == 1`` for this, so that adding a descendant of
+``mic_knl`` to the database does not silently change what the client concludes.
+
 -----------------------------
 Compiler's Optimization Flags
 -----------------------------
