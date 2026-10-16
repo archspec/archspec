@@ -2,7 +2,7 @@
 # Archspec Project Developers. See the top-level COPYRIGHT file for details.
 #
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
-"""Global objects with the content of the GPU detection JSON file and its schema"""
+"""Global objects with the content of the GPU microarchitecture JSON file and its schema"""
 
 import os
 import pathlib
@@ -26,8 +26,10 @@ def _json_file(filename: str, allow_custom: bool = False) -> pathlib.Path:
     return (json_dir / filename).absolute()
 
 
-#: In memory representation of the data in detection.json, loaded on first access
-DETECTION_JSON = LazyDictionary(_load, _json_file("detection.json", allow_custom=True), None)
+#: In memory representation of the data in microarchitectures.json, loaded on first access
+TARGETS_JSON = LazyDictionary(
+    _load, _json_file("microarchitectures.json", allow_custom=True), None
+)
 
-#: JSON schema for detection.json, loaded on first access
-DETECTION_JSON_SCHEMA = LazyDictionary(_load, _json_file("detection_schema.json"), None)
+#: JSON schema for microarchitectures.json, loaded on first access
+TARGETS_JSON_SCHEMA = LazyDictionary(_load, _json_file("microarchitectures_schema.json"), None)

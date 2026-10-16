@@ -4,11 +4,13 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 import subprocess
 
+import jsonschema
 import pytest
 
 import archspec.gpu
 import archspec.gpu.amd
 import archspec.gpu.nvidia
+import archspec.gpu.schema
 from archspec.cpu.microarchitecture import (
     InvalidCompilerVersion,
     UnsupportedMicroarchitecture,
@@ -272,3 +274,21 @@ def test_from_gpu_has_no_parents_yet():
     microarch = GPUMicroarch.from_gpu(gpu)
     assert microarch == GPUMicroarch("90", "nvidia")
     assert microarch.parents == [] and microarch.family is microarch
+
+
+def test_validate_gpu_json_file():
+    """The GPU microarchitecture JSON file loads and validates against its schema."""
+    json_data = archspec.gpu.schema.TARGETS_JSON.data
+    schema = archspec.gpu.schema.TARGETS_JSON_SCHEMA.data
+    jsonschema.validate(json_data, schema)
+    assert "90" in json_data["microarchitectures"]
+
+
+def test_gpu_json_dir_override(tmp_path, monkeypatch):
+    """ARCHSPEC_GPU_DIR redirects where microarchitectures.json is read from."""
+    (tmp_path / "microarchitectures.json").write_text('{"microarchitectures": {}}')
+    monkeypatch.setenv(archspec.gpu.schema.DIR_FROM_ENVIRONMENT, str(tmp_path))
+    assert archspec.gpu.schema._json_file("microarchitectures.json", allow_custom=True) == (
+        tmp_path / "microarchitectures.json"
+    )
+    assert archspec.gpu.schema._json_file("microarchitectures_schema.json").parent.name == "gpu"
