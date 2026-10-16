@@ -268,12 +268,54 @@ def test_microarch_optimization_flags_bounded_range():
         gfx.optimization_flags("hipcc", "6.0")
 
 
-def test_from_gpu_has_no_parents_yet():
-    """Until targets are loaded from JSON, a detected GPU maps to a parentless microarch."""
-    gpu = GPU(vendor="nvidia", compute_capability=ComputeCapability(9, 0))
+@pytest.mark.parametrize(
+    "gpu,expected",
+    [
+        # NVIDIA resolves to the most capable node for the silicon: a, then f, then plain
+        (GPU(vendor="nvidia", compute_capability=ComputeCapability(10, 0)), "100a"),
+        (GPU(vendor="nvidia", compute_capability=ComputeCapability(9, 0)), "90a"),
+        (GPU(vendor="nvidia", compute_capability=ComputeCapability(7, 5)), "75"),
+        # AMD resolves to the exact target ID, with or without an xnack mode
+        (GPU(vendor="amd", gfx_target=GFXTarget(9, 4, 2)), "gfx942"),
+        (GPU(vendor="amd", gfx_target=GFXTarget(9, 0, 10, xnack="-")), "gfx90a:xnack-"),
+    ],
+)
+def test_from_gpu_returns_catalogue_entry(gpu, expected):
+    """A detected GPU maps to the TARGETS object itself, with its ancestry attached."""
     microarch = GPUMicroarch.from_gpu(gpu)
-    assert microarch == GPUMicroarch("90", "nvidia")
+    assert microarch is TARGETS[expected]
+    assert microarch.ancestors
+
+
+def test_from_gpu_unknown_device_has_no_parents():
+    """A device the JSON doesn't know is still reported, but as a parentless node."""
+    gpu = GPU(vendor="nvidia", compute_capability=ComputeCapability(13, 0))
+    microarch = GPUMicroarch.from_gpu(gpu)
+    assert microarch == GPUMicroarch("130", "nvidia")
     assert microarch.parents == [] and microarch.family is microarch
+    assert all(not microarch >= t for t in TARGETS.values())
+
+
+@pytest.mark.parametrize(
+    "raw,expected",
+    [
+        ("gfx90a", "gfx90a"),
+        ("gfx90a:sramecc+:xnack-", "gfx90a:xnack-"),
+        ("gfx90a:xnack+", "gfx90a:xnack+"),
+        ("gfx942:sramecc+", "gfx942"),  # sramecc is not modelled
+        ("GFX1100:XNACK-", "gfx1100:xnack-"),
+    ],
+)
+def test_gfx_target_keeps_xnack(raw, expected):
+    target = GFXTarget.from_str(raw)
+    assert target.name == expected
+    assert GFXTarget.from_str(target.name) == target
+
+
+def test_gfx_target_xnack_modes_are_distinct():
+    assert GFXTarget(9, 0, 10, xnack="-") != GFXTarget(9, 0, 10)
+    assert GFXTarget(9, 0, 10, xnack="-") != GFXTarget(9, 0, 10, xnack="+")
+    assert len({GFXTarget(9, 0, 10, xnack="-"), GFXTarget(9, 0, 10, xnack="-")}) == 1
 
 
 def test_validate_gpu_json_file():

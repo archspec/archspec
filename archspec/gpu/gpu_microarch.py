@@ -204,22 +204,36 @@ class GPUMicroarch:
 
     @classmethod
     def from_gpu(cls, gpu: GPU) -> "GPUMicroarch":
-        """Construct a GPU microarchitecture from a GPU object."""
+        """Returns the known micro-architecture for a detected GPU.
+
+        The result is the matching entry of ``TARGETS``, so it carries parents, ancestors and
+        compiler support. A device is placed at the most capable node for its silicon: NVIDIA
+        devices resolve to their architecture-specific ``a`` target when one exists, then the
+        family-specific ``f`` target, then the plain compute capability. A device whose name is
+        not in ``TARGETS`` (e.g. newer than the JSON data) yields a bare node with no parents.
+
+        Raises:
+            ValueError: if the vendor is missing or unsupported, or the vendor-specific
+                identifier is missing.
+        """
         if not gpu.vendor:
             raise ValueError(f"Cannot construct GPUMicroarch from {gpu!r}: missing vendor")
 
-        name: str = ""
         if gpu.vendor == "nvidia":
             if not gpu.compute_capability:
                 raise ValueError(
                     f"Cannot construct GPUMicroarch from {gpu!r}: missing compute_capability"
                 )
             name = gpu.compute_capability.name
+            # Most specific first. ``a`` is a superset of ``f``, which is a superset of the plain
+            # target; ``f`` is kept as a candidate in case a device ever has one without an ``a``.
+            candidates = [name + "a", name + "f", name]
 
         elif gpu.vendor == "amd":
             if not gpu.gfx_target:
                 raise ValueError(f"Cannot construct GPUMicroarch from {gpu!r}: missing gfx_target")
             name = gpu.gfx_target.name
+            candidates = [name]
 
         # If vendor field is populated but unsupported (e.g. Intel for the time being)
         else:
@@ -227,6 +241,11 @@ class GPUMicroarch:
                 f"Cannot construct GPUMicroarch from {gpu!r}: invalid vendor {gpu.vendor!r}"
             )
 
+        for candidate in candidates:
+            if candidate in TARGETS:
+                return TARGETS[candidate]
+
+        # Unknown to the JSON data: still report the device, but with no ancestry
         return cls(name=name, vendor=gpu.vendor)
 
 

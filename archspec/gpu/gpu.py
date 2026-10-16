@@ -89,20 +89,23 @@ class ComputeCapability:
 class GFXTarget:
     """Represents the gfx target of an AMD GPU (e.g. ``gfx90a``)."""
 
-    def __init__(self, major: int, minor: int, stepping: int):
+    def __init__(self, major: int, minor: int, stepping: int, xnack: str = ""):
         self.major = major
         self.minor = minor
         self.stepping = stepping
+        #: ``"+"`` or ``"-"`` when the device reports an xnack mode, ``""`` otherwise
+        self.xnack = xnack
 
     @property
     def name(self) -> str:
-        """The ``gfx`` string form (e.g. ``gfx90a``)."""
-        return f"gfx{self.major}{self.minor:x}{self.stepping:x}"
+        """The target ID string form (e.g. ``gfx90a`` or ``gfx90a:xnack-``)."""
+        processor = f"gfx{self.major}{self.minor:x}{self.stepping:x}"
+        return f"{processor}:xnack{self.xnack}" if self.xnack else processor
 
     def __repr__(self) -> str:
         return (
             f"{self.__class__.__name__}(major={self.major!r}, minor={self.minor!r}, "
-            f"stepping={self.stepping!r})"
+            f"stepping={self.stepping!r}, xnack={self.xnack!r})"
         )
 
     def __str__(self) -> str:
@@ -111,26 +114,32 @@ class GFXTarget:
     def __eq__(self, other):
         if not isinstance(other, GFXTarget):
             return NotImplemented
-        return (self.major, self.minor, self.stepping) == (
+        return (self.major, self.minor, self.stepping, self.xnack) == (
             other.major,
             other.minor,
             other.stepping,
+            other.xnack,
         )
 
     def __hash__(self) -> int:
-        return hash((self.major, self.minor, self.stepping))
+        return hash((self.major, self.minor, self.stepping, self.xnack))
 
     @classmethod
     def from_str(cls, gfx_target: str) -> "GFXTarget":
-        """Parse a gfx target from its string form (e.g. ``gfx90a``).
+        """Parse a gfx target from its target ID string form (e.g. ``gfx90a:sramecc+:xnack-``).
 
-        Any target feature suffix (e.g. ``:sramecc+:xnack-``) is ignored.
+        The ``xnack`` target feature is kept, since code objects built for one xnack mode do
+        not run in the other. Any other feature (e.g. ``sramecc``) is dropped.
 
         Raises:
             ValueError: if *gfx_target* is not ``gfx`` followed by a decimal major version and
                 single hex digits for the minor version and stepping.
         """
-        processor = gfx_target.strip().lower().partition(":")[0]
+        processor, _, features = gfx_target.strip().lower().partition(":")
+        xnack = ""
+        for feature in features.split(":"):
+            if feature in ("xnack+", "xnack-"):
+                xnack = feature[-1]
         major, minor, stepping = processor[3:-2], processor[-2:-1], processor[-1:]
         if not (
             processor.startswith("gfx")
@@ -140,7 +149,7 @@ class GFXTarget:
         ):
             raise ValueError(f"Invalid gfx target format: expected `gfxXYZ`, got {gfx_target!r}")
 
-        return cls(major=int(major), minor=int(minor, 16), stepping=int(stepping, 16))
+        return cls(major=int(major), minor=int(minor, 16), stepping=int(stepping, 16), xnack=xnack)
 
 
 class GPU:
