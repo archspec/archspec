@@ -153,9 +153,10 @@ class GPUMicroarch:
             version: version of the compiler to be used
 
         Raises:
-            UnsupportedMicroarchitecture: if the requested compiler does not support
-                this micro-architecture.
-            InvalidCompilerVersion: if the version doesn't match the expected format
+            ~archspec.cpu.microarchitecture.UnsupportedMicroarchitecture: if the requested
+                compiler does not support this micro-architecture.
+            ~archspec.cpu.microarchitecture.InvalidCompilerVersion: if the version doesn't
+                match the expected format
         """
         if compiler not in self.compilers:
             # If an ancestor knows the compiler, support stops before this micro-architecture
