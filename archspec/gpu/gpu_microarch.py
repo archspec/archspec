@@ -17,6 +17,8 @@ from ..cpu.microarchitecture import (
     UnsupportedMicroarchitecture,
     version_components,
 )
+from ..cpu.schema import LazyDictionary
+from . import schema
 from .gpu import GPU
 
 
@@ -246,3 +248,48 @@ def _satisfies_version_constraint(constraint: str, version: str) -> bool:
     if max_version and tuplify(max_version) < version_tuple:
         return False
     return True
+
+
+def _known_microarchitectures() -> Dict[str, GPUMicroarch]:
+    """Returns a dictionary of the known GPU microarchitectures, keyed by name.
+
+    Every ``from`` entry in the JSON is resolved to the corresponding object, so the returned
+    nodes are connected: ancestors, family and the ordering operators all work on them.
+    """
+
+    def fill_target_from_dict(name: str, data: Dict[str, Any], targets: Dict[str, GPUMicroarch]):
+        """Recursively fills targets by adding the microarchitecture passed as argument and
+        all its ancestors.
+
+        Args:
+            name: micro-architecture to be added to targets.
+            data: raw data loaded from JSON.
+            targets: dictionary that maps micro-architecture names to ``GPUMicroarch`` objects
+        """
+        values = data[name]
+
+        # Recursively fill parents so they exist before we add them
+        for parent in values["from"]:
+            if parent not in targets:
+                fill_target_from_dict(parent, data, targets)
+
+        targets[name] = GPUMicroarch(
+            name=name,
+            vendor=values["vendor"],
+            parents=[targets[parent] for parent in values["from"]],
+            compilers=values.get("compilers", {}),
+        )
+
+    known_targets: Dict[str, GPUMicroarch] = {}
+    data = schema.TARGETS_JSON["microarchitectures"]
+    for name in data:
+        if name in known_targets:
+            # name was already brought in as ancestor to a target
+            continue
+        fill_target_from_dict(name, data, known_targets)
+
+    return known_targets
+
+
+#: Dictionary of known GPU micro-architectures
+TARGETS = LazyDictionary(_known_microarchitectures)

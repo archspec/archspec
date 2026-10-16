@@ -4,9 +4,10 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """The "gpu" package permits detection and querying of GPU microarchitectures."""
 from .detect import host
-from .gpu_microarch import GPUMicroarch
+from .gpu_microarch import TARGETS, GPUMicroarch
 
 __all__ = [
+    "TARGETS",
     "GPUMicroarch",
     "host",
 ]

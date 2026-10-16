@@ -16,7 +16,7 @@ from archspec.cpu.microarchitecture import (
     UnsupportedMicroarchitecture,
 )
 from archspec.gpu.gpu import GPU, ComputeCapability, GFXTarget, VendorPciCode
-from archspec.gpu.gpu_microarch import GPUMicroarch
+from archspec.gpu.gpu_microarch import TARGETS, GPUMicroarch
 
 
 def mock_smi(stdout, returncode=0):
@@ -292,3 +292,61 @@ def test_gpu_json_dir_override(tmp_path, monkeypatch):
         tmp_path / "microarchitectures.json"
     )
     assert archspec.gpu.schema._json_file("microarchitectures_schema.json").parent.name == "gpu"
+
+
+def test_validate_gpu_json_files():
+    """The GPU microarchitecture JSON validates against its schema."""
+    jsonschema.validate(
+        archspec.gpu.schema.TARGETS_JSON.data, archspec.gpu.schema.TARGETS_JSON_SCHEMA.data
+    )
+
+
+def test_targets_are_connected():
+    """TARGETS resolves every ``from`` entry to the shared object for that name."""
+    raw = archspec.gpu.schema.TARGETS_JSON["microarchitectures"]
+    assert set(TARGETS) == set(raw)
+    for name, values in raw.items():
+        target = TARGETS[name]
+        assert target.name == name and target.vendor == values["vendor"]
+        assert [p.name for p in target.parents] == values["from"]
+        assert all(p is TARGETS[p.name] for p in target.parents)
+        assert target.compilers == values.get("compilers", {})
+
+
+def test_targets_roots_and_families():
+    roots = {name for name, t in TARGETS.items() if not t.parents}
+    assert roots == {"nvidia", "amd"}
+    for target in TARGETS.values():
+        assert target.family.name in roots
+        assert target.family.vendor == "generic"
+
+
+@pytest.mark.parametrize(
+    "host,target,expected",
+    [
+        ("100a", "100", True),  # a B200 runs sm_100 SASS
+        ("100a", "100f", True),  # and sm_100f, the family target
+        ("103a", "100f", True),  # a B300 is in the same family
+        ("103a", "100a", False),  # but architecture-specific code is exact-match only
+        ("89", "80", True),  # minor-version forward compatibility within a major
+        ("90", "89", False),  # never across majors
+        ("101a", "100", False),  # 10.1 is isolated
+        ("gfx90a:xnack-", "gfx90a", True),  # either xnack mode runs xnack-agnostic code
+        ("gfx90a:xnack-", "gfx90a:xnack+", False),  # but the modes do not run each other's
+        ("gfx942", "amd", True),
+    ],
+)
+def test_targets_ordering(host, target, expected):
+    assert (TARGETS[host] >= TARGETS[target]) is expected
+
+
+def test_targets_optimization_flags():
+    assert (
+        TARGETS["89"].optimization_flags("nvcc", "12.4") == "-gencode arch=compute_89,code=sm_89"
+    )
+    assert TARGETS["100a"].optimization_flags("clang", "20.1") == "--cuda-gpu-arch=sm_100a"
+    assert TARGETS["gfx90a:xnack-"].optimization_flags("hipcc", "6.4") == (
+        "--offload-arch=gfx90a:xnack-"
+    )
+    with pytest.raises(UnsupportedMicroarchitecture):
+        TARGETS["70"].optimization_flags("nvcc", "13.0")
