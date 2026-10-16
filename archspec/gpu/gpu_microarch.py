@@ -4,6 +4,10 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """Defines the GPUMicroarch class, describing a detected GPU microarchitecture."""
 
+# This class deliberately mirrors archspec.cpu.microarchitecture.Microarchitecture so the two
+# behave the same; the shared logic is not factored out to keep the CPU module untouched.
+# pylint: disable=duplicate-code
+
 import re
 import warnings
 from typing import Any, Dict, List, Optional, Set
@@ -28,12 +32,12 @@ class GPUMicroarch:
     ):
         """
         Args:
-            name: compatibility identifier name (e.g. ``9.0`` for NVIDIA, ``gfx90a`` for AMD)
+            name: compatibility identifier name (e.g. ``90`` for NVIDIA, ``gfx90a`` for AMD)
             vendor: name of chip manufacturer (e.g. ``nvidia``)
             parents: list of parent micro-architectures, if any. Parenthood follows binary
                 compatibility, not chronology: a micro-architecture runs code built for any of
-                its ancestors. For example NVIDIA ``8.6``, which has ``8.0`` as a parent, runs
-                SASS compiled for ``8.0``.
+                its ancestors. For example NVIDIA ``86``, which has ``80`` as a parent, runs
+                SASS compiled for ``80``.
             compilers: compiler support to generate code for this micro-architecture. Keys are
                 compiler names, values are lists of dictionaries with fields:
 

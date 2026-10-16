@@ -70,6 +70,53 @@ def test_nvidia_smi_info_parses_smi_output(monkeypatch):
     assert gpus[1].compute_capability == ComputeCapability(9, 0)
 
 
+@pytest.mark.parametrize(
+    "text,expected",
+    [
+        ("9.0", ComputeCapability(9, 0)),
+        ("12.0", ComputeCapability(12, 0)),
+        ("90", ComputeCapability(9, 0)),
+        ("90a", ComputeCapability(9, 0, "a")),
+        ("100f", ComputeCapability(10, 0, "f")),
+        ("10.3a", ComputeCapability(10, 3, "a")),
+        (" 90 ", ComputeCapability(9, 0)),
+    ],
+)
+def test_compute_capability_from_str(text, expected):
+    """Both the dotted nvidia-smi form and the decimal-free form parse to the same object."""
+    assert ComputeCapability.from_str(text) == expected
+
+
+@pytest.mark.parametrize("name", ["90", "90a", "100f", "120", "75"])
+def test_compute_capability_name_is_decimal_free(name):
+    """The canonical name is the ``XYs`` form, and it round-trips through from_str."""
+    capability = ComputeCapability.from_str(name)
+    assert capability.name == name
+    assert str(capability) == name
+    assert "." not in capability.name
+
+
+def test_compute_capability_dotted_input_normalizes():
+    """nvidia-smi style ``X.Y`` input is emitted in the decimal-free notation."""
+    assert ComputeCapability.from_str("9.0").name == "90"
+    assert ComputeCapability.from_str("12.0").name == "120"
+
+
+def test_compute_capability_suffix_is_distinct():
+    """A suffixed capability is a different target than its unsuffixed base."""
+    assert ComputeCapability(9, 0) != ComputeCapability(9, 0, "a")
+    assert len({ComputeCapability(9, 0), ComputeCapability(9, 0, "a")}) == 2
+
+
+@pytest.mark.parametrize(
+    "bad", ["", "9", "9.", ".0", "9.00", "9.0.1", "a90", "90-", "9 0", "[N/A]"]
+)
+def test_compute_capability_from_str_invalid(bad):
+    """Malformed compute capabilities raise ValueError."""
+    with pytest.raises(ValueError):
+        ComputeCapability.from_str(bad)
+
+
 def test_rocm_smi_info_handles_malformed_json(monkeypatch):
     """Test that amd.smi_info returns no GPUs when rocm-smi emits unparseable output."""
     monkeypatch.setattr(archspec.gpu.amd.subprocess, "run", mock_smi("not json"))
@@ -127,24 +174,24 @@ def test_equality_and_hash():
 
 @pytest.fixture(name="nvidia_graph")
 def _nvidia_graph():
-    """A small NVIDIA compatibility graph: 8.0 <- 8.6 <- 8.9, and 9.0 off the root."""
+    """A small NVIDIA compatibility graph: 80 <- 86 <- 89, and 90 off the root."""
     nvcc = lambda arch, since: {  # noqa: E731
         "nvcc": [
             {"versions": f"{since}:", "flags": f"-gencode arch=compute_{arch},code=sm_{arch}"}
         ]
     }
     root = GPUMicroarch("nvidia", "generic")
-    cc80 = GPUMicroarch("8.0", "nvidia", parents=[root], compilers=nvcc("80", "11.0"))
-    cc86 = GPUMicroarch("8.6", "nvidia", parents=[cc80], compilers=nvcc("86", "11.1"))
-    cc89 = GPUMicroarch("8.9", "nvidia", parents=[cc86])
-    cc90 = GPUMicroarch("9.0", "nvidia", parents=[root], compilers=nvcc("90", "11.8"))
-    return {"nvidia": root, "8.0": cc80, "8.6": cc86, "8.9": cc89, "9.0": cc90}
+    cc80 = GPUMicroarch("80", "nvidia", parents=[root], compilers=nvcc("80", "11.0"))
+    cc86 = GPUMicroarch("86", "nvidia", parents=[cc80], compilers=nvcc("86", "11.1"))
+    cc89 = GPUMicroarch("89", "nvidia", parents=[cc86])
+    cc90 = GPUMicroarch("90", "nvidia", parents=[root], compilers=nvcc("90", "11.8"))
+    return {"nvidia": root, "80": cc80, "86": cc86, "89": cc89, "90": cc90}
 
 
 def test_microarch_ancestors_and_family(nvidia_graph):
-    assert nvidia_graph["8.9"].ancestors == [
-        nvidia_graph["8.6"],
-        nvidia_graph["8.0"],
+    assert nvidia_graph["89"].ancestors == [
+        nvidia_graph["86"],
+        nvidia_graph["80"],
         nvidia_graph["nvidia"],
     ]
     assert nvidia_graph["nvidia"].ancestors == []
@@ -154,33 +201,33 @@ def test_microarch_ancestors_and_family(nvidia_graph):
 
 def test_microarch_ordering(nvidia_graph):
     """Ordering is set inclusion over the ancestor DAG, so unrelated nodes are incomparable."""
-    cc80, cc89, cc90 = nvidia_graph["8.0"], nvidia_graph["8.9"], nvidia_graph["9.0"]
+    cc80, cc89, cc90 = nvidia_graph["80"], nvidia_graph["89"], nvidia_graph["90"]
     assert cc80 < cc89 and cc89 > cc80
     assert cc80 <= cc89 and cc80 <= cc80 and cc89 >= cc89
     assert not cc89 < cc90 and not cc89 > cc90
     assert not cc89 < cc89
     assert nvidia_graph["nvidia"] < cc90
     with pytest.raises(TypeError):
-        _ = cc80 < "8.9"  # type: ignore[operator]
+        _ = cc80 < "89"  # type: ignore[operator]
 
 
 def test_microarch_equality_and_hash(nvidia_graph):
     root = nvidia_graph["nvidia"]
-    same = GPUMicroarch("8.0", "nvidia", parents=[root], compilers=nvidia_graph["8.0"].compilers)
-    no_parents = GPUMicroarch("8.0", "nvidia")
-    assert same == nvidia_graph["8.0"]
-    assert hash(same) == hash(nvidia_graph["8.0"])
-    assert no_parents != nvidia_graph["8.0"]
-    assert nvidia_graph["8.0"] != "8.0"
-    assert len({same, nvidia_graph["8.0"]}) == 1
+    same = GPUMicroarch("80", "nvidia", parents=[root], compilers=nvidia_graph["80"].compilers)
+    no_parents = GPUMicroarch("80", "nvidia")
+    assert same == nvidia_graph["80"]
+    assert hash(same) == hash(nvidia_graph["80"])
+    assert no_parents != nvidia_graph["80"]
+    assert nvidia_graph["80"] != "80"
+    assert len({same, nvidia_graph["80"]}) == 1
 
 
 def test_microarch_to_dict(nvidia_graph):
-    assert nvidia_graph["8.6"].to_dict() == {
-        "name": "8.6",
+    assert nvidia_graph["86"].to_dict() == {
+        "name": "86",
         "vendor": "nvidia",
-        "parents": ["8.0"],
-        "compilers": nvidia_graph["8.6"].compilers,
+        "parents": ["80"],
+        "compilers": nvidia_graph["86"].compilers,
     }
     assert nvidia_graph["nvidia"].to_dict() == {
         "name": "nvidia",
@@ -191,7 +238,7 @@ def test_microarch_to_dict(nvidia_graph):
 
 
 def test_microarch_optimization_flags(nvidia_graph):
-    cc86 = nvidia_graph["8.6"]
+    cc86 = nvidia_graph["86"]
     assert cc86.optimization_flags("nvcc", "12.4") == "-gencode arch=compute_86,code=sm_86"
     assert cc86.optimization_flags("nvcc", "11.1") == "-gencode arch=compute_86,code=sm_86"
     # Unknown compiler anywhere in the lineage: nothing to say
@@ -200,8 +247,8 @@ def test_microarch_optimization_flags(nvidia_graph):
     with pytest.raises(UnsupportedMicroarchitecture, match="11.1:"):
         cc86.optimization_flags("nvcc", "11.0")
     # Compiler known to an ancestor but not to this target
-    with pytest.raises(UnsupportedMicroarchitecture, match="up to the '8.6"):
-        nvidia_graph["8.9"].optimization_flags("nvcc", "12.4")
+    with pytest.raises(UnsupportedMicroarchitecture, match="up to the '86"):
+        nvidia_graph["89"].optimization_flags("nvcc", "12.4")
     with pytest.raises(InvalidCompilerVersion):
         cc86.optimization_flags("nvcc", "12.4-rc1")
 
@@ -223,5 +270,5 @@ def test_from_gpu_has_no_parents_yet():
     """Until targets are loaded from JSON, a detected GPU maps to a parentless microarch."""
     gpu = GPU(vendor="nvidia", compute_capability=ComputeCapability(9, 0))
     microarch = GPUMicroarch.from_gpu(gpu)
-    assert microarch == GPUMicroarch("9.0", "nvidia")
+    assert microarch == GPUMicroarch("90", "nvidia")
     assert microarch.parents == [] and microarch.family is microarch

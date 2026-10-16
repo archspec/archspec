@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """Defines the GPU class to represent detected GPUs."""
 
+import re
 import string
 from enum import Enum
 from typing import Dict, Optional
@@ -28,19 +29,28 @@ class PciClass(str, Enum):
 
 
 class ComputeCapability:
-    """Represents the compute capability of an NVIDIA GPU (e.g. ``9.0``)."""
+    """Represents the compute capability of an NVIDIA GPU (e.g. ``90``).
 
-    def __init__(self, major: int, minor: int):
+    The canonical name is the decimal-free ``XYs`` form used by nvcc and the
+    archspec JSON: major version, single-digit minor version, and an optional
+    feature suffix (e.g. ``90``, ``90a``, ``100f``).
+    """
+
+    def __init__(self, major: int, minor: int, suffix: str = ""):
         self.major = major
         self.minor = minor
+        self.suffix = suffix
 
     @property
     def name(self) -> str:
-        """The ``X.Y`` string form (e.g. ``9.0``)."""
-        return f"{self.major}.{self.minor}"
+        """The ``XYs`` string form (e.g. ``90``, ``90a``)."""
+        return f"{self.major}{self.minor}{self.suffix}"
 
     def __repr__(self) -> str:
-        return f"{self.__class__.__name__}(major={self.major!r}, minor={self.minor!r})"
+        return (
+            f"{self.__class__.__name__}(major={self.major!r}, minor={self.minor!r}, "
+            f"suffix={self.suffix!r})"
+        )
 
     def __str__(self) -> str:
         return self.name
@@ -48,25 +58,32 @@ class ComputeCapability:
     def __eq__(self, other):
         if not isinstance(other, ComputeCapability):
             return NotImplemented
-        return (self.major, self.minor) == (other.major, other.minor)
+        return (self.major, self.minor, self.suffix) == (other.major, other.minor, other.suffix)
 
     def __hash__(self) -> int:
-        return hash((self.major, self.minor))
+        return hash((self.major, self.minor, self.suffix))
 
     @classmethod
     def from_str(cls, compute_capability: str) -> "ComputeCapability":
-        """Parse a compute capability from its ``X.Y`` string form (e.g. ``9.0``).
+        """Parse a compute capability from either its dotted ``X.Y`` form, as reported by
+        nvidia-smi (e.g. ``9.0``), or its ``XYs`` form (e.g. ``90``, ``90a``, ``100f``).
+
+        The minor version is always a single digit; the suffix is optional and made of
+        letters only.
 
         Raises:
-            ValueError: if *compute_capability* is not in ``X.Y`` form.
+            ValueError: if *compute_capability* is not in ``X.Y[s]`` or ``XY[s]`` form.
         """
-        major, separator, minor = compute_capability.strip().partition(".")
-        if not (separator and major.isdigit() and minor.isdigit()):
+        text = compute_capability.strip()
+        match = re.fullmatch(r"(\d+)\.?(\d)([A-Za-z]*)", text)
+        if not match:
             raise ValueError(
-                f"Invalid compute capability format: expected `X.Y`, got {compute_capability!r}"
+                f"Invalid compute capability format: expected `X.Y[s]` or `XY[s]`,"
+                f" got {compute_capability!r}"
             )
 
-        return cls(major=int(major), minor=int(minor))
+        major, minor, suffix = match.groups()
+        return cls(major=int(major), minor=int(minor), suffix=suffix)
 
 
 class GFXTarget:
@@ -152,7 +169,7 @@ class GPU:
             component_pci_code: 4-digit hex PCI device ID of the GPU (e.g. ``0x2c02``)
             pci_class: PCI class code of the device (e.g. ``PciClass.VGA`` for ``0x030000``)
             driver_version: version number of currently installed driver (e.g. ``595.58.03``)
-            compute_capability: NVIDIA-specific compatibility identifier (e.g. ``9.0``)
+            compute_capability: NVIDIA-specific compatibility identifier (e.g. ``90``)
             gfx_target: AMD-specific compatibility identifier (e.g. ``gfx90a``)
         """
         self.name = name
