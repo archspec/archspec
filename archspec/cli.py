@@ -88,7 +88,7 @@ def gpu(args) -> int:  # pylint: disable=unused-argument
     print(f"Detected {num_gpus} GPU(s).\n")
     for i in range(num_gpus):
         print(f"GPU {i}:")
-        print(gpus[i])
+        print(f"{gpus[i].display_name} ({gpus[i].vendor})")
         if i < (num_gpus - 1):
             print()
 

@@ -392,3 +392,28 @@ def test_targets_optimization_flags():
     )
     with pytest.raises(UnsupportedMicroarchitecture):
         TARGETS["70"].optimization_flags("nvcc", "13.0")
+
+
+@pytest.mark.parametrize(
+    "node,expected",
+    [
+        ("100a", "10.0"),
+        ("100f", "10.0"),
+        ("75", "7.5"),
+        ("121a", "12.1"),
+        ("gfx90a:xnack-", "gfx90a"),
+        ("gfx942", "gfx942"),
+        ("nvidia", "nvidia"),
+    ],
+)
+def test_display_name_drops_target_suffix(node, expected):
+    """display_name is the device's own identifier; str() and name are the node name."""
+    assert TARGETS[node].display_name == expected
+    assert str(TARGETS[node]) == TARGETS[node].name == node
+
+
+def test_str_of_detected_gpu_is_node_name():
+    gpu = GPU(vendor="nvidia", compute_capability=ComputeCapability(10, 0))
+    microarch = GPUMicroarch.from_gpu(gpu)
+    assert str(microarch) == "100a"
+    assert microarch.display_name == "10.0"

@@ -85,7 +85,7 @@ class GPUMicroarch:
         """Returns a set of the nodes in this microarchitecture DAG."""
         # This function is used to implement subset semantics with
         # comparison operators
-        return set([str(self)] + [str(x) for x in self.ancestors])
+        return set([self.name] + [x.name for x in self.ancestors])
 
     def __eq__(self, other):
         if not isinstance(other, GPUMicroarch):
@@ -126,9 +126,23 @@ class GPUMicroarch:
         return f"{self.__class__.__name__}({fields})"
 
     def __str__(self) -> str:
-        if self.name and self.vendor:
-            return f"{self.name} ({self.vendor})"
-        return "unknown gpu"
+        return self.name
+
+    @property
+    def display_name(self) -> str:
+        """What the device reports about itself, without any compiler-target suffix: the
+        compute capability ``10.0`` for the ``100a`` node, ``gfx90a`` for ``gfx90a:xnack-``.
+
+        Meant for human-readable output such as the CLI. ``name`` (and ``str()``) is the node's
+        identifier in ``TARGETS`` and is what code should use.
+        """
+        if self.vendor == "nvidia":
+            # The minor version is always a single digit, so the split is unambiguous
+            digits = re.sub(r"[af]$", "", self.name)
+            return f"{digits[:-1]}.{digits[-1]}"
+        if self.vendor == "amd":
+            return self.name.partition(":")[0]
+        return self.name
 
     def to_dict(self) -> Dict[str, Any]:
         """Returns a dictionary representation of this object."""
@@ -167,8 +181,8 @@ class GPUMicroarch:
                 return ""
             best_target = known[0]
             msg = (
-                f"'{compiler}' compiler is known to target up to the '{best_target}'"
-                f" microarchitecture in the '{best_target.family}' architecture family"
+                f"'{compiler}' compiler is known to target up to the '{best_target.name}'"
+                f" microarchitecture in the '{best_target.family.name}' architecture family"
             )
             raise UnsupportedMicroarchitecture(msg)
 
