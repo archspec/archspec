@@ -439,3 +439,16 @@ def test_comparisons_reject_unknown_names_and_other_types():
     with pytest.raises(TypeError):
         _ = TARGETS["100a"] < 100  # type: ignore[operator]
     assert TARGETS["100a"] != 100
+
+
+@pytest.mark.parametrize("node", ["100a", "gfx90a:xnack-", "nvidia"])
+def test_microarch_from_dict_round_trip(node):
+    """from_dict resolves parent names to the catalogue objects, so the graph survives."""
+    original = TARGETS[node]
+    rebuilt = GPUMicroarch.from_dict(original.to_dict())
+    assert rebuilt == original
+    assert rebuilt.ancestors == original.ancestors
+    assert all(parent is TARGETS[parent.name] for parent in rebuilt.parents)
+    assert GPUMicroarch.from_dict({"name": "130", "vendor": "nvidia"}).parents == []
+    with pytest.raises(ValueError, match="not a valid target name"):
+        GPUMicroarch.from_dict({"name": "x", "vendor": "nvidia", "parents": ["nope"]})

@@ -178,6 +178,28 @@ class GPUMicroarch:
             "compilers": self.compilers,
         }
 
+    @classmethod
+    def from_dict(cls, gpu_dict: Dict[str, Any]) -> "GPUMicroarch":
+        """Returns a GPUMicroarch object from a raw dictionary
+
+        Raises:
+            ValueError if parent name is not a known target in TARGETS
+        """
+        parents = []
+        for parent in gpu_dict.get("parents") or []:
+            if parent not in TARGETS:
+                raise ValueError(f'"{parent}" is not a valid target name')
+            parents.append(TARGETS[parent])
+
+        compilers = gpu_dict.get("compilers") or {}
+
+        return cls(
+            name=gpu_dict["name"],
+            vendor=gpu_dict["vendor"],
+            parents=parents,
+            compilers=compilers,
+        )
+
     def optimization_flags(self, compiler: str, version: str) -> str:
         """Returns a string containing the flags that need to be passed to ``compiler`` to
         produce code for this micro-architecture.
