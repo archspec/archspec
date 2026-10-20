@@ -4,10 +4,11 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 """Defines the GPUMicroarch class, describing a detected GPU microarchitecture."""
 
-# This class deliberately mirrors archspec.cpu.microarchitecture.Microarchitecture so the two
-# behave the same; the shared logic is not factored out to keep the CPU module untouched.
+# This class deliberately mirrors archspec.cpu.microarchitecture.Microarchitecture.
+# Reimplementation here is to reference GPU specific targets while keeping CPU independent.
 # pylint: disable=duplicate-code
 
+import functools
 import re
 import warnings
 from typing import Any, Dict, List, Optional, Set
@@ -20,6 +21,24 @@ from ..cpu.microarchitecture import (
 from ..cpu.schema import LazyDictionary
 from . import schema
 from .gpu import GPU
+
+
+def coerce_target_names(func):
+    """Decorator that automatically converts a known target name to a proper
+    GPUMicroarch object, so comparisons accept strings: ``host >= "100f"``.
+    """
+
+    @functools.wraps(func)
+    def _impl(self, other):
+        if isinstance(other, str):
+            if other not in TARGETS:
+                msg = '"{0}" is not a valid target name'
+                raise ValueError(msg.format(other))
+            other = TARGETS[other]
+
+        return func(self, other)
+
+    return _impl
 
 
 class GPUMicroarch:
@@ -87,6 +106,7 @@ class GPUMicroarch:
         # comparison operators
         return set([self.name] + [x.name for x in self.ancestors])
 
+    @coerce_target_names
     def __eq__(self, other):
         if not isinstance(other, GPUMicroarch):
             return NotImplemented
@@ -97,25 +117,30 @@ class GPUMicroarch:
             and self.compilers == other.compilers
         )
 
+    @coerce_target_names
     def __ne__(self, other):
         return not self == other
 
     def __hash__(self) -> int:
         return hash((self.vendor, self.name))
 
+    @coerce_target_names
     def __lt__(self, other):
         if not isinstance(other, GPUMicroarch):
             return NotImplemented
         return self._to_set() < other._to_set()
 
+    @coerce_target_names
     def __le__(self, other):
         return (self == other) or (self < other)
 
+    @coerce_target_names
     def __gt__(self, other):
         if not isinstance(other, GPUMicroarch):
             return NotImplemented
         return self._to_set() > other._to_set()
 
+    @coerce_target_names
     def __ge__(self, other):
         return (self == other) or (self > other)
 

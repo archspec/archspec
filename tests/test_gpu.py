@@ -210,7 +210,7 @@ def test_microarch_ordering(nvidia_graph):
     assert not cc89 < cc89
     assert nvidia_graph["nvidia"] < cc90
     with pytest.raises(TypeError):
-        _ = cc80 < "89"  # type: ignore[operator]
+        _ = cc80 < 89  # type: ignore[operator]
 
 
 def test_microarch_equality_and_hash(nvidia_graph):
@@ -417,3 +417,25 @@ def test_str_of_detected_gpu_is_node_name():
     microarch = GPUMicroarch.from_gpu(gpu)
     assert str(microarch) == "100a"
     assert microarch.display_name == "10.0"
+
+
+def test_comparisons_accept_target_names():
+    """Strings are resolved through TARGETS, on either side of the operator."""
+    b200 = TARGETS["100a"]
+    assert b200 >= "100f" and b200 > "100" and b200 >= "100a"
+    assert "100f" <= b200 and "100" < b200
+    assert not b200 >= "103a" and not b200 < "75"
+    assert b200 == "100a" and b200 != "100f"
+    assert "100a" == b200 and "100f" != b200
+    assert TARGETS["gfx90a:xnack-"] >= "gfx90a"
+    assert not TARGETS["gfx90a:xnack-"] >= "gfx90a:xnack+"
+
+
+def test_comparisons_reject_unknown_names_and_other_types():
+    with pytest.raises(ValueError, match="not a valid target name"):
+        _ = TARGETS["100a"] >= "sm_100a"
+    with pytest.raises(ValueError, match="not a valid target name"):
+        _ = TARGETS["100a"] == "nope"
+    with pytest.raises(TypeError):
+        _ = TARGETS["100a"] < 100  # type: ignore[operator]
+    assert TARGETS["100a"] != 100
