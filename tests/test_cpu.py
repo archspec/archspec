@@ -73,6 +73,7 @@ from archspec.cpu import Microarchitecture
         "linux-ubuntu24.04-alderlake",
         "linux-ubuntu26.04-arrowlake_s",
         "linux-ubuntu24.04-neoverse_v3ae",
+        "linux-rocky9-zen6",
     ]
 )
 def expected_target(request, monkeypatch):
