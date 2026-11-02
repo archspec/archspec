@@ -72,6 +72,7 @@ from archspec.cpu import Microarchitecture
         "linux-ubuntu22.04-ampere1a",
         "linux-ubuntu24.04-alderlake",
         "linux-ubuntu26.04-arrowlake_s",
+        "linux-ubuntu22.04-neoverse_v3",
         "linux-ubuntu24.04-neoverse_v3ae",
         "linux-rocky9-zen6",
         "linux-ubuntu26.04-olympus",
@@ -262,6 +263,8 @@ def test_equality(supported_target):
         ("zen >= zen", True),
         ("aarch64 <= thunderx2", True),
         ("aarch64 <= a64fx", True),
+        ("neoverse_v2 < neoverse_v3", True),
+        ("neoverse_v3 < neoverse_v3ae", True),
         # Test unrelated microarchitectures
         ("power8 < skylake", False),
         ("power8 <= skylake", False),
@@ -381,6 +384,8 @@ def test_validate_json_files(json_data, schema):
         ("thunderx2", "gcc", "4.8.5", "-march=armv8-a"),
         ("thunderx2", "gcc", "4.9.3", "-march=armv8-a+crc+crypto"),
         ("neoverse_v1", "gcc", "12.1.0", "-mcpu=neoverse-v1"),
+        ("neoverse_v3", "gcc", "14.3.0", "-mcpu=neoverse-v3"),
+        ("neoverse_v3ae", "gcc", "14.3.0", "-mcpu=neoverse-v3ae"),
         # Test Apple's Clang
         ("x86_64", "apple-clang", "11.0.0", "-march=x86-64"),
         (
@@ -438,6 +443,7 @@ def test_optimization_flags(target_name, compiler, version, expected_flags):
     [
         ("excavator", "gcc", "4.8.5"),
         ("broadwell", "apple-clang", "7.0.0"),
+        ("neoverse_v3", "gcc", "14.2.0"),
         ("x86_64", "nvhpc", "23"),
         ("x86_64_v2", "nvhpc", "23"),
         ("ppc64le", "nvhpc", "23"),
