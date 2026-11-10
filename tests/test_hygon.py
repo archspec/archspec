@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
-"""Hygon production data integration; synthetic inputs except the shared M4 fixture."""
+"""Hygon production data integration with synthetic CPU inputs."""
 import io
 
 import pytest
