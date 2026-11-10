@@ -21,6 +21,7 @@ from archspec.cpu import Microarchitecture
 
 @pytest.fixture(
     params=[
+        "linux-ubuntu22.04-c86_4g_m4",
         "linux-ubuntu18.04-broadwell",
         "linux-rhel7-broadwell",
         "linux-rhel7-skylake_avx512",
