@@ -692,3 +692,249 @@ def test_why_not_wrong_family(monkeypatch):
         target_family=str(archspec.cpu.TARGETS["power8"].family),
         host_family="x86_64",
     )
+
+
+@pytest.fixture
+def identity_targets(monkeypatch):
+    # Equal ISA candidates isolate selection from hardware ISA validation.
+    parent = archspec.cpu.TARGETS["x86_64_v4"]
+    for name in ("c86_4g_m7", "c86_4g_m8"):
+        monkeypatch.setitem(
+            archspec.cpu.TARGETS,
+            name,
+            archspec.cpu.Microarchitecture(
+                name, [parent], "HygonGenuine", set(parent.features), {}
+            ),
+        )
+    mappings = {"HygonGenuine": {"24": {"7": "c86_4g_m7", "8": "c86_4g_m8"}}}
+    monkeypatch.setitem(archspec.cpu.schema.TARGETS_JSON, "x86_cpu_targets", mappings)
+    monkeypatch.setattr(archspec.cpu.detect, "_machine", lambda: "x86_64")
+    monkeypatch.setattr(archspec.cpu.detect.platform, "system", lambda: "Linux")
+    archspec.cpu.detect.host.cache_clear()
+    yield parent, mappings
+    archspec.cpu.detect.host.cache_clear()
+
+
+def run_host(monkeypatch, flags, vendor="HygonGenuine", family="24", model="7"):
+    text = "vendor_id : {}\ncpu family : {}\nmodel : {}\nflags : {}\n\n".format(
+        vendor, family, model, " ".join(sorted(flags))
+    )
+    monkeypatch.setattr(archspec.cpu.detect, "open", lambda path: StringIO(text), raising=False)
+    archspec.cpu.detect.host.cache_clear()
+    return archspec.cpu.detect.host().name
+
+
+@pytest.mark.parametrize("reverse", [False, True])
+@pytest.mark.parametrize("model", ["7", "8"])
+def test_identity_selects_target_independent_of_order(
+    monkeypatch, identity_targets, reverse, model
+):
+    parent, _ = identity_targets
+    names = ["c86_4g_m7", "c86_4g_m8"]
+    if reverse:
+        # Mutate only a replacement dict, so fixture teardown restores the original.
+        targets = dict(archspec.cpu.TARGETS)
+        values = [(name, targets.pop(name)) for name in names]
+        targets.update(reversed(values))
+        monkeypatch.setattr(archspec.cpu.detect, "TARGETS", targets)
+    assert run_host(monkeypatch, parent.features, model=model) == "c86_4g_m" + model
+
+
+@pytest.mark.parametrize(
+    "family,model",
+    [("24", "99"), ("25", "7"), ("", "7"), ("bad", "7"), ("24", ""), ("24", "bad"), ("-1", "7")],
+)
+def test_unknown_or_invalid_identity_keeps_original_path(
+    monkeypatch, identity_targets, family, model
+):
+    parent, _ = identity_targets
+    expected = run_host(monkeypatch, parent.features, family=family, model=model)
+    monkeypatch.delitem(archspec.cpu.schema.TARGETS_JSON, "x86_cpu_targets")
+    assert run_host(monkeypatch, parent.features, family=family, model=model) == expected
+
+
+def test_vendor_mismatch(monkeypatch, identity_targets):
+    parent, _ = identity_targets
+    assert run_host(monkeypatch, parent.features, vendor="GenuineIntel") not in (
+        "c86_4g_m7",
+        "c86_4g_m8",
+    )
+
+
+def test_masked_features_exclude_mapped_target(monkeypatch, identity_targets):
+    parent, _ = identity_targets
+    assert run_host(monkeypatch, parent.features - {"avx512f"}, model="8") == "x86_64_v3"
+
+
+@pytest.mark.parametrize("target", ["does-not-exist", "cascadelake"])
+def test_unusable_mapping_keeps_original_path(monkeypatch, identity_targets, target):
+    parent, mappings = identity_targets
+    mappings["HygonGenuine"]["24"]["8"] = target
+    expected = run_host(monkeypatch, parent.features, model="8")
+    monkeypatch.delitem(archspec.cpu.schema.TARGETS_JSON, "x86_cpu_targets")
+    assert run_host(monkeypatch, parent.features, model="8") == expected
+
+
+def test_best_generic_constraint(monkeypatch, identity_targets):
+    parent, mappings = identity_targets
+    mappings["HygonGenuine"]["24"]["8"] = "x86_64_v2"
+    assert run_host(monkeypatch, parent.features, model="8") == "c86_4g_m7"
+
+
+def test_missing_identity_fields(monkeypatch, identity_targets):
+    assert archspec.cpu.detect._x86_target_from_identity("HygonGenuine", None, "7") == ""
+    assert archspec.cpu.detect._x86_target_from_identity("HygonGenuine", "24", None) == ""
+    assert (
+        archspec.cpu.detect._x86_target_from_identity("HygonGenuine", "024", "008") == "c86_4g_m8"
+    )
+
+
+def test_schema_accepts_optional_mapping(identity_targets):
+    jsonschema.validate(
+        dict(archspec.cpu.schema.TARGETS_JSON), dict(archspec.cpu.schema.TARGETS_JSON_SCHEMA)
+    )
+    original = dict(archspec.cpu.schema.TARGETS_JSON)
+    original.pop("x86_cpu_targets")
+    jsonschema.validate(original, dict(archspec.cpu.schema.TARGETS_JSON_SCHEMA))
+
+
+@pytest.mark.parametrize(
+    "mapping",
+    [
+        {"HygonGenuine": {"0x18": {"7": "c86_4g_m7"}}},
+        {"HygonGenuine": {"24": {"07": "c86_4g_m7"}}},
+        {"HygonGenuine": {"24": {"7": ""}}},
+        {"HygonGenuine": {"24": {"7": ["c86_4g_m7", "c86_4g_m8"]}}},
+    ],
+)
+def test_schema_rejects_invalid_or_ambiguous_mapping(mapping):
+    data = dict(archspec.cpu.schema.TARGETS_JSON)
+    data["x86_cpu_targets"] = mapping
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(data, dict(archspec.cpu.schema.TARGETS_JSON_SCHEMA))
+
+
+def test_extension_mapping_loads(tmp_path):
+    base = tmp_path / "base.json"
+    extension = tmp_path / "extension.json"
+    base.write_text('{"x86_cpu_targets": {}}')
+    extension.write_text('{"x86_cpu_targets": {"HygonGenuine": {"24": {"8": "m8"}}}}')
+    assert (
+        archspec.cpu.schema._load(base, extension)["x86_cpu_targets"]["HygonGenuine"]["24"]["8"]
+        == "m8"
+    )
+
+
+def test_identity_preference_overrides_ranking(monkeypatch, identity_targets):
+    parent, _ = identity_targets
+    # A smaller feature count is still eligible when all constraints hold.
+    target = archspec.cpu.TARGETS["c86_4g_m8"]
+    monkeypatch.setattr(target, "features", set(parent.features))
+    monkeypatch.setattr(
+        archspec.cpu.TARGETS["c86_4g_m7"], "features", set(parent.features) | {"clwb"}
+    )
+    assert run_host(monkeypatch, set(parent.features) | {"clwb"}, model="8") == "c86_4g_m8"
+
+
+def test_masked_target_specific_feature_keeps_other_candidate(monkeypatch, identity_targets):
+    parent, _ = identity_targets
+    target = archspec.cpu.TARGETS["c86_4g_m8"]
+    monkeypatch.setattr(target, "features", set(parent.features) | {"clwb"})
+    # M8 alone is ineligible; the existing path can still choose M7.
+    assert run_host(monkeypatch, parent.features, model="8") == "c86_4g_m7"
+
+
+def test_identity_cannot_select_another_architecture(monkeypatch, identity_targets):
+    parent, mappings = identity_targets
+    mappings["HygonGenuine"]["24"]["8"] = "aarch64"
+    assert run_host(monkeypatch, parent.features, model="8") == "c86_4g_m7"
+
+
+def test_vendor_target_below_best_generic_is_not_preferred(monkeypatch, identity_targets):
+    parent, mappings = identity_targets
+    legacy = archspec.cpu.Microarchitecture(
+        "legacy_hygon",
+        [archspec.cpu.TARGETS["x86_64_v2"]],
+        "HygonGenuine",
+        set(archspec.cpu.TARGETS["x86_64_v3"].features),
+        {},
+    )
+    monkeypatch.setitem(archspec.cpu.TARGETS, legacy.name, legacy)
+    mappings["HygonGenuine"]["24"]["8"] = legacy.name
+    assert run_host(monkeypatch, parent.features, model="8") == "c86_4g_m7"
+
+
+@pytest.fixture
+def linux_hygon(monkeypatch):
+    monkeypatch.setattr(archspec.cpu.detect, "_machine", lambda: "x86_64")
+    monkeypatch.setattr(archspec.cpu.detect.platform, "system", lambda: "Linux")
+    archspec.cpu.detect.host.cache_clear()
+    yield
+    archspec.cpu.detect.host.cache_clear()
+
+
+def detect_hygon(monkeypatch, model, features):
+    text = "vendor_id : HygonGenuine\ncpu family : 24\nmodel : {}\nflags : {}\n\n".format(
+        model, " ".join(sorted(features))
+    )
+    monkeypatch.setattr(archspec.cpu.detect, "open", lambda path: StringIO(text), raising=False)
+    archspec.cpu.detect.host.cache_clear()
+    return archspec.cpu.detect.host().name
+
+
+@pytest.mark.parametrize("model", [4, 6, 7, 8])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_production_identity_selection(monkeypatch, linux_hygon, model, reverse):
+    if reverse:
+        # Reverse the complete production registry, not the CPU feature flags.
+        monkeypatch.setattr(
+            archspec.cpu.detect, "TARGETS", dict(reversed(list(archspec.cpu.TARGETS.items())))
+        )
+    name = "c86_4g_m{}".format(model)
+    assert detect_hygon(monkeypatch, model, archspec.cpu.TARGETS[name].features) == name
+
+
+@pytest.mark.parametrize("model", [4, 6, 7, 8])
+def test_mapped_target_requires_its_features(monkeypatch, linux_hygon, model):
+    name = "c86_4g_m{}".format(model)
+    features = archspec.cpu.TARGETS[name].features - {"clzero"}
+    assert detect_hygon(monkeypatch, model, features) not in {
+        "c86_4g_m4",
+        "c86_4g_m6",
+        "c86_4g_m7",
+        "c86_4g_m8",
+    }
+
+
+@pytest.mark.parametrize("model", [4, 6, 7, 8])
+@pytest.mark.parametrize(
+    "compiler,version,native",
+    [
+        ("gcc", "16.1.7", False),
+        ("gcc", "16.2.0", True),
+        ("clang", "23.0.9", False),
+        ("clang", "23.1.0", True),
+    ],
+)
+def test_native_compiler_name_boundaries(model, compiler, version, native):
+    target = archspec.cpu.TARGETS["c86_4g_m{}".format(model)]
+    flags = target.optimization_flags(compiler, version)
+    if native:
+        name = "c86-4g-m{}".format(model)
+        assert "-march=" + name in flags
+        assert "-mtune=" + name in flags
+    else:
+        level = 3 if model in (4, 6) else 4
+        assert flags == "-march=x86-64-v{} -mtune=generic".format(level)
+
+
+def test_clang_m8_preserves_native_target_defaults():
+    flags = archspec.cpu.TARGETS["c86_4g_m8"].optimization_flags("clang", "23.1.0")
+    assert flags == "-march=c86-4g-m8 -mtune=c86-4g-m8"
+
+
+@pytest.mark.parametrize("model", [4, 6, 7, 8])
+def test_old_gcc_patch_release_uses_explicit_fallback(model):
+    flags = archspec.cpu.TARGETS["c86_4g_m{}".format(model)].optimization_flags("gcc", "11.0.1")
+    assert "-march=x86-64 " in flags
+    assert "-mavx2" in flags
