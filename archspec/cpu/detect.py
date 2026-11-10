@@ -97,8 +97,11 @@ def proc_cpuinfo() -> Microarchitecture:
 
     architecture = _machine()
     if architecture == X86_64:
+        vendor = data.get("vendor_id", "generic")
         return partial_uarch(
-            vendor=data.get("vendor_id", "generic"), features=_feature_set(data, key="flags")
+            name=_x86_target_from_identity(vendor, data.get("cpu family"), data.get("model")),
+            vendor=vendor,
+            features=_feature_set(data, key="flags"),
         )
 
     if architecture == AARCH64:
@@ -130,6 +133,27 @@ def proc_cpuinfo() -> Microarchitecture:
         return partial_uarch(name=data.get("uarch", RISCV64))
 
     return generic_microarchitecture(architecture)
+
+
+def _x86_target_from_identity(
+    vendor: str, cpu_family: Optional[str], cpu_model: Optional[str]
+) -> str:
+    """Return an optional target preference, not a compatibility decision.
+
+    Numeric identity fields are Linux decimal values. Missing or invalid identity
+    leaves selection to the existing feature-based path. Vendors must opt in by
+    supplying mappings; an identity is not assumed to uniquely identify all CPUs.
+    """
+    if cpu_family is None or cpu_model is None:
+        return ""
+    try:
+        family, model = int(cpu_family), int(cpu_model)
+    except (TypeError, ValueError):
+        return ""
+    if family < 0 or model < 0:
+        return ""
+    mappings = TARGETS_JSON.get("x86_cpu_targets", {})
+    return mappings.get(vendor, {}).get(str(family), {}).get(str(model), "")
 
 
 class CpuidInfoCollector:
@@ -424,6 +448,13 @@ def host() -> Microarchitecture:
     # If we don't have candidates, return the best generic micro-architecture
     if not candidates:
         return best_generic
+
+    # An identity supplies a preference only among candidates that passed both
+    # compatibility checks and the best-generic constraint above.
+    if _machine() == X86_64 and info.name:
+        for candidate in candidates:
+            if candidate.name == info.name:
+                return candidate
 
     # Reverse sort of the depth for the inheritance tree among only targets we
     # can use. This gets the newest target we satisfy.
