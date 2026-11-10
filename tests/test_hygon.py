@@ -63,9 +63,9 @@ def test_native_compiler_name_boundaries(model, compiler, version, native):
         assert flags == "-march=x86-64-v{} -mtune=generic".format(level)
 
 
-def test_clang_m8_does_not_enable_unmodeled_shstk():
+def test_clang_m8_preserves_native_target_defaults():
     flags = cpu.TARGETS["c86_4g_m8"].optimization_flags("clang", "23.1.0")
-    assert "-mno-shstk" in flags
+    assert flags == "-march=c86-4g-m8 -mtune=c86-4g-m8"
 
 
 @pytest.mark.parametrize("model", [4, 6, 7, 8])
