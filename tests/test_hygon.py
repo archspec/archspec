@@ -41,15 +41,22 @@ def test_mapped_target_requires_its_features(monkeypatch, linux_hygon, model):
     name = "c86_4g_m{}".format(model)
     features = cpu.TARGETS[name].features - {"clzero"}
     assert detect_hygon(monkeypatch, model, features) not in {
-        "c86_4g_m4", "c86_4g_m6", "c86_4g_m7", "c86_4g_m8"
+        "c86_4g_m4",
+        "c86_4g_m6",
+        "c86_4g_m7",
+        "c86_4g_m8",
     }
 
 
 @pytest.mark.parametrize("model", [4, 6, 7, 8])
 @pytest.mark.parametrize(
     "compiler,version,native",
-    [("gcc", "16.1.7", False), ("gcc", "16.2.0", True),
-     ("clang", "23.0.9", False), ("clang", "23.1.0", True)],
+    [
+        ("gcc", "16.1.7", False),
+        ("gcc", "16.2.0", True),
+        ("clang", "23.0.9", False),
+        ("clang", "23.1.0", True),
+    ],
 )
 def test_native_compiler_name_boundaries(model, compiler, version, native):
     target = cpu.TARGETS["c86_4g_m{}".format(model)]
