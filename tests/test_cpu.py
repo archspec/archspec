@@ -4,8 +4,10 @@
 # SPDX-License-Identifier: (Apache-2.0 OR MIT)
 
 import contextlib
+import copy
 import csv
 import os.path
+import warnings
 from io import StringIO
 from typing import NamedTuple
 
@@ -529,6 +531,27 @@ def test_round_trip_dict():
     for name in archspec.cpu.TARGETS:
         uarch_copy = Microarchitecture.from_dict(archspec.cpu.TARGETS[name].to_dict())
         assert uarch_copy == archspec.cpu.TARGETS[name]
+
+
+def test_optimization_flags_do_not_modify_targets(reset_global_state):
+    """Ensure computing optimization flags does not modify the targets."""
+
+    # Reset global state in case some other test has modified targets.
+    reset_global_state()
+
+    expected = copy.deepcopy(dict(archspec.cpu.TARGETS))
+    for target in archspec.cpu.TARGETS.values():
+        for compiler, entries in target.compilers.items():
+            for entry in entries:
+                min_version, max_version = entry["versions"].split(":")
+                version, _ = archspec.cpu.microarchitecture.version_components(
+                    min_version or max_version or "1"
+                )
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    target.optimization_flags(compiler, version)
+
+    assert dict(archspec.cpu.TARGETS) == expected
 
 
 def test_microarchitectures_extension(extension_file, monkeypatch, reset_global_state):
